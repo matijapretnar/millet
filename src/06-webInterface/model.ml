@@ -1,6 +1,5 @@
 open Utils
-module Ast = Core.Ast
-module Interpreter = Core.Interpreter
+module Ast = Language.Ast
 
 type snapshot = { computation : Ast.computation }
 

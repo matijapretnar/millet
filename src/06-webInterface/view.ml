@@ -1,6 +1,5 @@
 open Vdom
-module Ast = Core.Ast
-module Interpreter = Core.Interpreter
+module Ast = Language.Ast
 
 let panel ?(a = []) heading blocks =
   div ~a:(class_ "panel" :: a)

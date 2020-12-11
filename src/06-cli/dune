@@ -1,6 +1,6 @@
 (executable
  (name cli)
- (libraries core loader)
+ (libraries loader)
  (promote
   (until-clean)
   (into ../..)))

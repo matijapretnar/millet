@@ -1,7 +1,5 @@
 open Utils
-module Interpreter = Core.Interpreter
-module Typechecker = Core.Typechecker
-module Ast = Core.Ast
+module Ast = Language.Ast
 
 let parse_commands lexbuf =
   try Parser.Grammar.commands Parser.Lexer.token lexbuf with
@@ -45,7 +43,7 @@ let initial_state =
     typechecker = Typechecker.initial_state;
     top_computations = [];
   }
-  |> fun state -> List.fold_left load_function state Core.BuiltIn.functions
+  |> fun state -> List.fold_left load_function state Language.BuiltIn.functions
 
 let execute_command state = function
   | Ast.TyDef ty_defs ->

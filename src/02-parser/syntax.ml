@@ -1,6 +1,6 @@
 open Utils
-module Ast = Core.Ast
-module Const = Core.Const
+module Ast = Language.Ast
+module Const = Language.Const
 
 type ty_name = string
 

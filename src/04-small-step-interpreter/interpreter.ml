@@ -1,4 +1,6 @@
 open Utils
+module Ast = Language.Ast
+module Const = Language.Const
 
 type state = {
   variables : Ast.expression Ast.VariableMap.t;

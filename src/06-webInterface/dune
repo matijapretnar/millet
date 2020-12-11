@@ -1,6 +1,6 @@
 (executable
  (name webInterface)
- (libraries ocaml-vdom core loader)
+ (libraries ocaml-vdom loader)
  (modes js)
  (link_flags -no-check-prims)
  (promote
