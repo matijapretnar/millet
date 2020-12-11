@@ -42,7 +42,7 @@ let initial_state =
     typechecker = Typechecker.initial_state;
     top_computations = [];
   }
-  |> fun state -> List.fold load_function state BuiltIn.functions
+  |> fun state -> List.fold_left load_function state BuiltIn.functions
 
 let execute_command state = function
   | Ast.TyDef ty_defs ->
