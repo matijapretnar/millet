@@ -101,8 +101,7 @@ plain_comma_term:
 binop_term: mark_position(plain_binop_term) { $1 }
 plain_binop_term:
   | t1 = binop_term op = binop t2 = binop_term
-    { let tuple = {it= Tuple [t1; t2]; at= of_lexeme $startpos} in
-      Apply ({it= Var op; at=of_lexeme $startpos}, tuple) }
+    { Apply ({it= Apply ({it= Var op; at=of_lexeme $startpos}, t1); at=of_lexeme $startpos}, t2) }
   | t1 = binop_term CONS t2 = binop_term
     { let tuple = {it= Tuple [t1; t2]; at= of_lexeme $startpos} in
       Variant (cons_label, Some tuple) }

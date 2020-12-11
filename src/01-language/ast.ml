@@ -218,9 +218,6 @@ let string_of_computation c =
   print_computation c Format.str_formatter;
   Format.flush_str_formatter ()
 
-let primitive_variables =
-  List.map
-    (fun prim -> (prim, Variable.fresh (Primitives.primitive_name prim)))
-    Primitives.primitives
-
-let primitive_variable prim = List.assoc prim primitive_variables
+let load_primitive_cmd prim =
+  let x = Variable.fresh (Primitives.primitive_name prim) in
+  LoadPrimitive (x, prim)

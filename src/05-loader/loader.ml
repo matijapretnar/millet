@@ -90,11 +90,6 @@ let make_computation state =
 let stdlib_source = Stdlib_mlt.contents
 
 let initial_state =
-  let load_primitive_cmd prim =
-    let x = Ast.primitive_variable prim in
-    Language.Ast.LoadPrimitive (x, prim)
-  in
-  let primitive_cmds =
-    List.map load_primitive_cmd Language.Primitives.primitives
-  in
-  List.fold_left execute_command empty_state primitive_cmds
+  Language.Primitives.primitives
+  |> List.map Language.Ast.load_primitive_cmd
+  |> List.fold_left execute_command empty_state

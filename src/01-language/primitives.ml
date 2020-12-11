@@ -62,4 +62,4 @@ let primitive_name = function
   | FloatDiv -> "__float_div__"
   | FloatPow -> "__float_pow__"
   | FloatNeg -> "__float_neg__"
-  | ToString -> "__to_string__"
+  | ToString -> "to_string"
