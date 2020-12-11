@@ -36,7 +36,7 @@ let infer_ty = function
   | Boolean _ -> BooleanTy
   | Float _ -> FloatTy
 
-type comparison = Less | Equal | Greater | Invalid
+type comparison = Less | Equal | Greater
 
 let compare c1 c2 =
   let cmp x y =

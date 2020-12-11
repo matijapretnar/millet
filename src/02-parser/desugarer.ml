@@ -294,6 +294,6 @@ let desugar_command state = function
       let state', f, expr = desugar_let_rec_def state (f, term) in
       (state', Ast.TopLet (f, expr))
 
-let add_external_variable x state =
-  let x' = Ast.Variable.fresh x in
-  (add_fresh_variables state [ (x, x') ], x')
+let load_primitive state x prim =
+  let str = Language.Primitives.primitive_name prim in
+  add_fresh_variables state [ (str, x) ]

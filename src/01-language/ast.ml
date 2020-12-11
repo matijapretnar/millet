@@ -150,6 +150,7 @@ type ty_def = TySum of (label * ty option) list | TyInline of ty
 type command =
   | TyDef of (ty_param list * ty_name * ty_def) list
   | TopLet of variable * expression
+  | LoadPrimitive of variable * Primitives.primitive
   | TopDo of computation
 
 let rec print_pattern ?max_level p ppf =
@@ -216,3 +217,10 @@ let string_of_expression e =
 let string_of_computation c =
   print_computation c Format.str_formatter;
   Format.flush_str_formatter ()
+
+let primitive_variables =
+  List.map
+    (fun prim -> (prim, Variable.fresh (Primitives.primitive_name prim)))
+    Primitives.primitives
+
+let primitive_variable prim = List.assoc prim primitive_variables

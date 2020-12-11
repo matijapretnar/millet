@@ -19,31 +19,13 @@ type state = {
   top_computations : Ast.computation list;
 }
 
-let initial_state =
-  let load_function state (x, ty_sch, def) =
-    let desugarer_state', x' =
-      Parser.Desugarer.add_external_variable x state.desugarer
-    in
-    let interpreter_state' =
-      Interpreter.add_external_function x' def state.interpreter
-    in
-    let typechecker_state' =
-      Typechecker.add_external_function x' ty_sch state.typechecker
-    in
-    {
-      state with
-      desugarer = desugarer_state';
-      interpreter = interpreter_state';
-      typechecker = typechecker_state';
-    }
-  in
+let empty_state =
   {
     desugarer = Parser.Desugarer.initial_state;
     interpreter = Interpreter.initial_state;
     typechecker = Typechecker.initial_state;
     top_computations = [];
   }
-  |> fun state -> List.fold_left load_function state Language.BuiltIn.functions
 
 let execute_command state = function
   | Ast.TyDef ty_defs ->
@@ -66,6 +48,22 @@ let execute_command state = function
   | Ast.TopDo comp ->
       let _ = Typechecker.infer state.typechecker comp in
       { state with top_computations = comp :: state.top_computations }
+  | Ast.LoadPrimitive (x, prim) ->
+      let desugarer_state' =
+        Parser.Desugarer.load_primitive state.desugarer x prim
+      in
+      let typechecker_state' =
+        Typechecker.load_primitive state.typechecker x prim
+      in
+      let interpreter_state' =
+        Interpreter.load_primitive state.interpreter x prim
+      in
+      {
+        state with
+        desugarer = desugarer_state';
+        interpreter = interpreter_state';
+        typechecker = typechecker_state';
+      }
 
 let load_commands state cmds =
   let desugarer_state', cmds' =
@@ -90,3 +88,13 @@ let make_computation state =
 
 (** The module Stdlib_mlt is automatically generated from stdlib.mlt. Check the dune file for details. *)
 let stdlib_source = Stdlib_mlt.contents
+
+let initial_state =
+  let load_primitive_cmd prim =
+    let x = Ast.primitive_variable prim in
+    Language.Ast.LoadPrimitive (x, prim)
+  in
+  let primitive_cmds =
+    List.map load_primitive_cmd Language.Primitives.primitives
+  in
+  List.fold_left execute_command empty_state primitive_cmds

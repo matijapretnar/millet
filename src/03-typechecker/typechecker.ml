@@ -253,3 +253,7 @@ let add_type_definitions state ty_defs =
           Ast.TyNameMap.add ty_name (params, ty_def) state.type_definitions;
       })
     state ty_defs
+
+let load_primitive state x prim =
+  let ty_sch = Primitives.primitive_type_scheme prim in
+  add_external_function x ty_sch state

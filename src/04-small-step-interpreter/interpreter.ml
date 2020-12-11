@@ -212,10 +212,13 @@ let rec step_computation state = function
 let eval_top_let state x expr =
   { state with variables = Ast.VariableMap.add x expr state.variables }
 
-let add_external_function x def state =
+let load_primitive state x prim =
   {
     state with
-    builtin_functions = Ast.VariableMap.add x def state.builtin_functions;
+    builtin_functions =
+      Ast.VariableMap.add x
+        (Primitives.primitive_function prim)
+        state.builtin_functions;
   }
 
 type top_step = Step of Ast.computation
