@@ -33,8 +33,6 @@ type ty =
   | TyParam of ty_param  (** ['a] *)
   | TyArrow of ty * ty  (** [ty1 -> ty2] *)
   | TyTuple of ty list  (** [ty1 * ty2 * ... * tyn] *)
-  | TyPromise of ty  (** [<<ty>>] *)
-  | TyReference of ty  (** [ty ref] *)
 
 let rec print_ty ?max_level print_param p ppf =
   let print ?at_level = Print.print ?max_level ?at_level ppf in
@@ -58,9 +56,6 @@ let rec print_ty ?max_level print_param p ppf =
   | TyTuple tys ->
       print ~at_level:2 "%t"
         (Print.print_sequence " × " (print_ty ~max_level:1 print_param) tys)
-  | TyPromise ty -> print "⟨%t⟩" (print_ty print_param ty)
-  | TyReference ty ->
-      print ~at_level:1 "%t ref" (print_ty ~max_level:1 print_param ty)
 
 let new_print_param () =
   let names = ref TyParamMap.empty in
@@ -92,8 +87,6 @@ let rec substitute_ty subst = function
   | TyTuple tys -> TyTuple (List.map (substitute_ty subst) tys)
   | TyArrow (ty1, ty2) ->
       TyArrow (substitute_ty subst ty1, substitute_ty subst ty2)
-  | TyPromise ty -> TyPromise (substitute_ty subst ty)
-  | TyReference ty -> TyReference (substitute_ty subst ty)
 
 let rec free_vars = function
   | TyConst _ -> TyParamSet.empty
@@ -107,8 +100,6 @@ let rec free_vars = function
         (fun vars ty -> TyParamSet.union vars (free_vars ty))
         TyParamSet.empty tys
   | TyArrow (ty1, ty2) -> TyParamSet.union (free_vars ty1) (free_vars ty2)
-  | TyPromise ty -> free_vars ty
-  | TyReference ty -> free_vars ty
 
 module Variable = Symbol.Make ()
 

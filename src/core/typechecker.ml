@@ -178,8 +178,6 @@ let rec occurs a = function
   | Ast.TyArrow (ty1, ty2) -> occurs a ty1 || occurs a ty2
   | Ast.TyApply (_, tys) -> List.exists (occurs a) tys
   | Ast.TyTuple tys -> List.exists (occurs a) tys
-  | Ast.TyPromise ty -> occurs a ty
-  | Ast.TyReference ty -> occurs a ty
 
 let is_transparent_type state ty_name =
   match Ast.TyNameMap.find ty_name state.type_definitions with
@@ -212,10 +210,6 @@ let rec unify state = function
       unify state (List.combine tys1 tys2 @ eqs)
   | (Ast.TyArrow (t1, t1'), Ast.TyArrow (t2, t2')) :: eqs ->
       unify state ((t1, t2) :: (t1', t2') :: eqs)
-  | (Ast.TyPromise ty1, Ast.TyPromise ty2) :: eqs ->
-      unify state ((ty1, ty2) :: eqs)
-  | (Ast.TyReference ty1, Ast.TyReference ty2) :: eqs ->
-      unify state ((ty1, ty2) :: eqs)
   | (Ast.TyParam a, t) :: eqs when not (occurs a t) ->
       add_subst a t
         (unify state (subst_equations (Ast.TyParamMap.singleton a t) eqs))

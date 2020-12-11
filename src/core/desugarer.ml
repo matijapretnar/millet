@@ -62,8 +62,6 @@ and desugar_plain_ty ~loc state = function
       let tys' = List.map (desugar_ty state) tys in
       Ast.TyTuple tys'
   | S.TyConst c -> Ast.TyConst c
-  | S.TyReference ty -> Ast.TyReference (desugar_ty state ty)
-  | S.TyPromise ty -> Ast.TyPromise (desugar_ty state ty)
 
 let rec desugar_pattern state { it = pat; Location.at = loc } =
   let vars, pat' = desugar_plain_pattern ~loc state pat in

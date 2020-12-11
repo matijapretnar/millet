@@ -25,8 +25,6 @@ and plain_ty =
   | TyApply of ty_name * ty list  (** [(ty1, ty2, ..., tyn) type_name] *)
   | TyParam of ty_param  (** ['a] *)
   | TyArrow of ty * ty  (** [ty1 -> ty2] *)
-  | TyPromise of ty  (** [<<ty>>] *)
-  | TyReference of ty  (** [ty ref] *)
   | TyTuple of ty list  (** [ty1 * ty2 * ... * tyn] *)
 
 type variable = string

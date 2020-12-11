@@ -390,8 +390,6 @@ plain_ty_apply:
 plain_simple_ty:
   | t = tyname
     { TyApply (t, []) }
-  | LPROMISE t = ty RPROMISE
-    { TyPromise t }
   | t = PARAM
     { TyParam t }
   | LPAREN t = ty RPAREN
