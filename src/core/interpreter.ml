@@ -62,9 +62,99 @@ let rec match_pattern_with_expression state pat expr =
   | Ast.PNonbinding -> Ast.VariableMap.empty
   | _ -> raise PatternMismatch
 
+let rec remove_pattern_bound_variables subst = function
+  | Ast.PVar x -> Ast.VariableMap.remove x subst
+  | Ast.PAnnotated (pat, _) -> remove_pattern_bound_variables subst pat
+  | Ast.PAs (pat, x) ->
+      let subst = remove_pattern_bound_variables subst pat in
+      Ast.VariableMap.remove x subst
+  | Ast.PTuple pats -> List.fold_left remove_pattern_bound_variables subst pats
+  | Ast.PVariant (_, None) -> subst
+  | Ast.PVariant (_, Some pat) -> remove_pattern_bound_variables subst pat
+  | Ast.PConst _ -> subst
+  | Ast.PNonbinding -> subst
+
+let rec refresh_pattern = function
+  | Ast.PVar x ->
+      let x' = Ast.Variable.refresh x in
+      (Ast.PVar x', [ (x, x') ])
+  | Ast.PAnnotated (pat, _) -> refresh_pattern pat
+  | Ast.PAs (pat, x) ->
+      let pat', vars = refresh_pattern pat in
+      let x' = Ast.Variable.refresh x in
+      (Ast.PAs (pat', x'), (x, x') :: vars)
+  | Ast.PTuple pats ->
+      let fold pat (pats', vars) =
+        let pat', vars' = refresh_pattern pat in
+        (pat' :: pats', vars' @ vars)
+      in
+      let pats', vars = List.fold_right fold pats ([], []) in
+      (Ast.PTuple pats', vars)
+  | Ast.PVariant (lbl, Some pat) ->
+      let pat', vars = refresh_pattern pat in
+      (PVariant (lbl, Some pat'), vars)
+  | (PVariant (_, None) | PConst _ | PNonbinding) as pat -> (pat, [])
+
+let rec refresh_expression vars = function
+  | Ast.Var x as expr -> (
+      match List.assoc_opt x vars with None -> expr | Some x' -> Var x' )
+  | Ast.Const _ as expr -> expr
+  | Ast.Annotated (expr, ty) -> Ast.Annotated (refresh_expression vars expr, ty)
+  | Ast.Tuple exprs -> Ast.Tuple (List.map (refresh_expression vars) exprs)
+  | Ast.Variant (label, expr) ->
+      Ast.Variant (label, Option.map (refresh_expression vars) expr)
+  | Ast.Lambda abs -> Ast.Lambda (refresh_abstraction vars abs)
+  | Ast.RecLambda (x, abs) ->
+      let x' = Ast.Variable.refresh x in
+      Ast.RecLambda (x', refresh_abstraction ((x, x') :: vars) abs)
+
+and refresh_computation vars = function
+  | Ast.Return expr -> Ast.Return (refresh_expression vars expr)
+  | Ast.Do (comp, abs) ->
+      Ast.Do (refresh_computation vars comp, refresh_abstraction vars abs)
+  | Ast.Match (expr, cases) ->
+      Ast.Match
+        (refresh_expression vars expr, List.map (refresh_abstraction vars) cases)
+  | Ast.Apply (expr1, expr2) ->
+      Ast.Apply (refresh_expression vars expr1, refresh_expression vars expr2)
+
+and refresh_abstraction vars (pat, comp) =
+  let pat', vars' = refresh_pattern pat in
+  (pat', refresh_computation (vars @ vars') comp)
+
+let rec substitute_expression subst = function
+  | Ast.Var x as expr -> (
+      match Ast.VariableMap.find_opt x subst with
+      | None -> expr
+      | Some expr -> expr )
+  | Ast.Const _ as expr -> expr
+  | Ast.Annotated (expr, ty) -> Annotated (substitute_expression subst expr, ty)
+  | Ast.Tuple exprs -> Tuple (List.map (substitute_expression subst) exprs)
+  | Ast.Variant (label, expr) ->
+      Variant (label, Option.map (substitute_expression subst) expr)
+  | Ast.Lambda abs -> Lambda (substitute_abstraction subst abs)
+  | Ast.RecLambda (x, abs) -> RecLambda (x, substitute_abstraction subst abs)
+
+and substitute_computation subst = function
+  | Ast.Return expr -> Ast.Return (substitute_expression subst expr)
+  | Ast.Do (comp, abs) ->
+      Ast.Do
+        (substitute_computation subst comp, substitute_abstraction subst abs)
+  | Ast.Match (expr, cases) ->
+      Ast.Match
+        ( substitute_expression subst expr,
+          List.map (substitute_abstraction subst) cases )
+  | Ast.Apply (expr1, expr2) ->
+      Ast.Apply
+        (substitute_expression subst expr1, substitute_expression subst expr2)
+
+and substitute_abstraction subst (pat, comp) =
+  let subst' = remove_pattern_bound_variables subst pat in
+  (pat, substitute_computation subst' comp)
+
 let substitute subst comp =
-  let subst = Ast.VariableMap.map (Ast.refresh_expression []) subst in
-  Ast.substitute_computation subst comp
+  let subst = Ast.VariableMap.map (refresh_expression []) subst in
+  substitute_computation subst comp
 
 let rec eval_function state = function
   | Ast.Lambda (pat, comp) ->

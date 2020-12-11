@@ -112,6 +112,8 @@ let rec free_vars = function
 
 module Variable = Symbol.Make ()
 
+module VariableMap = Map.Make (Variable)
+
 module Label = Symbol.Make ()
 
 type variable = Variable.t
@@ -147,95 +149,6 @@ and computation =
   | Apply of expression * expression
 
 and abstraction = pattern * computation
-
-module VariableMap = Map.Make (Variable)
-
-let rec remove_pattern_bound_variables subst = function
-  | PVar x -> VariableMap.remove x subst
-  | PAnnotated (pat, _) -> remove_pattern_bound_variables subst pat
-  | PAs (pat, x) ->
-      let subst = remove_pattern_bound_variables subst pat in
-      VariableMap.remove x subst
-  | PTuple pats -> List.fold_left remove_pattern_bound_variables subst pats
-  | PVariant (_, None) -> subst
-  | PVariant (_, Some pat) -> remove_pattern_bound_variables subst pat
-  | PConst _ -> subst
-  | PNonbinding -> subst
-
-let rec refresh_pattern = function
-  | PVar x ->
-      let x' = Variable.refresh x in
-      (PVar x', [ (x, x') ])
-  | PAnnotated (pat, _) -> refresh_pattern pat
-  | PAs (pat, x) ->
-      let pat', vars = refresh_pattern pat in
-      let x' = Variable.refresh x in
-      (PAs (pat', x'), (x, x') :: vars)
-  | PTuple pats ->
-      let fold pat (pats', vars) =
-        let pat', vars' = refresh_pattern pat in
-        (pat' :: pats', vars' @ vars)
-      in
-      let pats', vars = List.fold_right fold pats ([], []) in
-      (PTuple pats', vars)
-  | PVariant (lbl, Some pat) ->
-      let pat', vars = refresh_pattern pat in
-      (PVariant (lbl, Some pat'), vars)
-  | (PVariant (_, None) | PConst _ | PNonbinding) as pat -> (pat, [])
-
-let rec refresh_expression vars = function
-  | Var x as expr -> (
-      match List.assoc_opt x vars with None -> expr | Some x' -> Var x' )
-  | Const _ as expr -> expr
-  | Annotated (expr, ty) -> Annotated (refresh_expression vars expr, ty)
-  | Tuple exprs -> Tuple (List.map (refresh_expression vars) exprs)
-  | Variant (label, expr) ->
-      Variant (label, Option.map (refresh_expression vars) expr)
-  | Lambda abs -> Lambda (refresh_abstraction vars abs)
-  | RecLambda (x, abs) ->
-      let x' = Variable.refresh x in
-      RecLambda (x', refresh_abstraction ((x, x') :: vars) abs)
-
-and refresh_computation vars = function
-  | Return expr -> Return (refresh_expression vars expr)
-  | Do (comp, abs) ->
-      Do (refresh_computation vars comp, refresh_abstraction vars abs)
-  | Match (expr, cases) ->
-      Match
-        (refresh_expression vars expr, List.map (refresh_abstraction vars) cases)
-  | Apply (expr1, expr2) ->
-      Apply (refresh_expression vars expr1, refresh_expression vars expr2)
-
-and refresh_abstraction vars (pat, comp) =
-  let pat', vars' = refresh_pattern pat in
-  (pat', refresh_computation (vars @ vars') comp)
-
-let rec substitute_expression subst = function
-  | Var x as expr -> (
-      match VariableMap.find_opt x subst with None -> expr | Some expr -> expr )
-  | Const _ as expr -> expr
-  | Annotated (expr, ty) -> Annotated (substitute_expression subst expr, ty)
-  | Tuple exprs -> Tuple (List.map (substitute_expression subst) exprs)
-  | Variant (label, expr) ->
-      Variant (label, Option.map (substitute_expression subst) expr)
-  | Lambda abs -> Lambda (substitute_abstraction subst abs)
-  | RecLambda (x, abs) -> RecLambda (x, substitute_abstraction subst abs)
-
-and substitute_computation subst = function
-  | Return expr -> Return (substitute_expression subst expr)
-  | Do (comp, abs) ->
-      Do (substitute_computation subst comp, substitute_abstraction subst abs)
-  | Match (expr, cases) ->
-      Match
-        ( substitute_expression subst expr,
-          List.map (substitute_abstraction subst) cases )
-  | Apply (expr1, expr2) ->
-      Apply
-        (substitute_expression subst expr1, substitute_expression subst expr2)
-
-and substitute_abstraction subst (pat, comp) =
-  let subst' = remove_pattern_bound_variables subst pat in
-  (pat, substitute_computation subst' comp)
 
 type ty_def = TySum of (label * ty option) list | TyInline of ty
 
@@ -290,7 +203,7 @@ and print_computation ?max_level c ppf =
         (print_computation c1) (print_computation c2)
   | Match (e, lst) ->
       print "match %t with (@[<hov>%t@])" (print_expression e)
-        (Print.print_sequence " | " case lst)
+        (Print.print_sequence " | " print_case lst)
   | Apply (e1, e2) ->
       print ~at_level:1 "@[%t@ %t@]"
         (print_expression ~max_level:1 e1)
@@ -299,10 +212,7 @@ and print_computation ?max_level c ppf =
 and print_abstraction (p, c) ppf =
   Format.fprintf ppf "%t ↦ %t" (print_pattern p) (print_computation c)
 
-and let_abstraction (p, c) ppf =
-  Format.fprintf ppf "%t = %t" (print_pattern p) (print_computation c)
-
-and case a ppf = Format.fprintf ppf "%t" (print_abstraction a)
+and print_case a ppf = Format.fprintf ppf "%t" (print_abstraction a)
 
 let string_of_expression e =
   print_expression e Format.str_formatter;
