@@ -1,0 +1,6 @@
+(executable
+ (name cli)
+ (libraries core)
+ (promote
+  (until-clean)
+  (into ../..)))

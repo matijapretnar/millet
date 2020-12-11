@@ -1,0 +1,15 @@
+let rec fact n =
+  if n = 0 then 1 else n * fact (n - 1)
+
+let fib n =
+  let rec aux n a b =
+    if n = 0 then a else aux (n - 1) b (a + b)
+  in
+  aux n 0 1
+
+let rec gcd m n =
+  match n with
+  | 0 -> m
+  | _ -> gcd n (m mod n)
+
+run (gcd (fib 10) (fact 10))
