@@ -111,9 +111,13 @@ type variable = Variable.t
 
 type label = Label.t
 
-let nil_label = Label.fresh Syntax.nil_label
+let nil_label_string = "$nil$"
 
-let cons_label = Label.fresh Syntax.cons_label
+let nil_label = Label.fresh nil_label_string
+
+let cons_label_string = "$cons$"
+
+let cons_label = Label.fresh cons_label_string
 
 type pattern =
   | PVar of variable

@@ -4,7 +4,7 @@
   open Utils.Location
 %}
 
-%token LPAREN RPAREN LBRACK RBRACK LPROMISE RPROMISE
+%token LPAREN RPAREN LBRACK RBRACK
 %token COLON COMMA SEMI EQUAL CONS
 %token BEGIN END
 %token <string> LNAME

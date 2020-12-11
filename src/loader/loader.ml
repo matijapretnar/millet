@@ -1,8 +1,11 @@
 open Utils
+module Interpreter = Core.Interpreter
+module Typechecker = Core.Typechecker
+module Ast = Core.Ast
 
 let parse_commands lexbuf =
-  try Parser.commands Lexer.token lexbuf with
-  | Parser.Error ->
+  try Parser.Grammar.commands Parser.Lexer.token lexbuf with
+  | Parser.Grammar.Error ->
       Error.syntax
         ~loc:(Location.of_lexeme (Lexing.lexeme_start_p lexbuf))
         "parser error"
@@ -12,7 +15,7 @@ let parse_commands lexbuf =
         "unrecognised symbol."
 
 type state = {
-  desugarer : Desugarer.state;
+  desugarer : Parser.Desugarer.state;
   interpreter : Interpreter.state;
   typechecker : Typechecker.state;
   top_computations : Ast.computation list;
@@ -21,7 +24,7 @@ type state = {
 let initial_state =
   let load_function state (x, ty_sch, def) =
     let desugarer_state', x' =
-      Desugarer.add_external_variable x state.desugarer
+      Parser.Desugarer.add_external_variable x state.desugarer
     in
     let interpreter_state' =
       Interpreter.add_external_function x' def state.interpreter
@@ -37,12 +40,12 @@ let initial_state =
     }
   in
   {
-    desugarer = Desugarer.initial_state;
+    desugarer = Parser.Desugarer.initial_state;
     interpreter = Interpreter.initial_state;
     typechecker = Typechecker.initial_state;
     top_computations = [];
   }
-  |> fun state -> List.fold_left load_function state BuiltIn.functions
+  |> fun state -> List.fold_left load_function state Core.BuiltIn.functions
 
 let execute_command state = function
   | Ast.TyDef ty_defs ->
@@ -68,7 +71,7 @@ let execute_command state = function
 
 let load_commands state cmds =
   let desugarer_state', cmds' =
-    List.fold_map Desugarer.desugar_command state.desugarer cmds
+    List.fold_map Parser.Desugarer.desugar_command state.desugarer cmds
   in
   let state' = { state with desugarer = desugarer_state' } in
   List.fold_left execute_command state' cmds'
@@ -79,7 +82,7 @@ let load_source state source =
   load_commands state cmds
 
 let load_file state source =
-  let cmds = Lexer.read_file parse_commands source in
+  let cmds = Parser.Lexer.read_file parse_commands source in
   load_commands state cmds
 
 let make_computation state =

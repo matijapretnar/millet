@@ -1,7 +1,6 @@
 open Utils
 module Ast = Core.Ast
 module Interpreter = Core.Interpreter
-module Loader = Core.Loader
 
 type snapshot = { computation : Ast.computation }
 

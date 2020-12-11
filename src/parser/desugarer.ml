@@ -2,6 +2,8 @@
 
 open Utils
 module S = Syntax
+module Ast = Core.Ast
+module Const = Core.Const
 module StringMap = Map.Make (String)
 
 type state = {

@@ -1,5 +1,5 @@
 {
-  open Parser
+  open Grammar
   open Utils
 
   let reserved = Desugarer.StringMap.of_seq @@ List.to_seq [
@@ -97,8 +97,6 @@ rule token = parse
   | ')'                 { RPAREN }
   | '['                 { LBRACK }
   | ']'                 { RBRACK }
-  | "<<"                { LPROMISE }
-  | ">>"                { RPROMISE }
   | "::"                { CONS }
   | ':'                 { COLON }
   | ','                 { COMMA }

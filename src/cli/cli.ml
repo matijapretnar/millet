@@ -1,7 +1,6 @@
 open Utils
 module Ast = Core.Ast
 module Interpreter = Core.Interpreter
-module Loader = Core.Loader
 
 let make_top_step = function Interpreter.Step proc -> proc
 
