@@ -19,14 +19,6 @@ type state = {
   top_computations : Ast.computation list;
 }
 
-let empty_state =
-  {
-    desugarer = Parser.Desugarer.initial_state;
-    interpreter = Interpreter.initial_state;
-    typechecker = Typechecker.initial_state;
-    top_computations = [];
-  }
-
 let execute_command state = function
   | Ast.TyDef ty_defs ->
       let typechecker_state' =
@@ -48,22 +40,6 @@ let execute_command state = function
   | Ast.TopDo comp ->
       let _ = Typechecker.infer state.typechecker comp in
       { state with top_computations = comp :: state.top_computations }
-  | Ast.LoadPrimitive (x, prim) ->
-      let desugarer_state' =
-        Parser.Desugarer.load_primitive state.desugarer x prim
-      in
-      let typechecker_state' =
-        Typechecker.load_primitive state.typechecker x prim
-      in
-      let interpreter_state' =
-        Interpreter.load_primitive state.interpreter x prim
-      in
-      {
-        state with
-        desugarer = desugarer_state';
-        interpreter = interpreter_state';
-        typechecker = typechecker_state';
-      }
 
 let load_commands state cmds =
   let desugarer_state', cmds' =
@@ -89,7 +65,33 @@ let make_computation state =
 (** The module Stdlib_mlt is automatically generated from stdlib.mlt. Check the dune file for details. *)
 let stdlib_source = Stdlib_mlt.contents
 
+let load_primitive state prim =
+  let x = Ast.Variable.fresh (Language.Primitives.primitive_name prim) in
+  let desugarer_state' =
+    Parser.Desugarer.load_primitive state.desugarer x prim
+  in
+  let typechecker_state' =
+    Typechecker.load_primitive state.typechecker x prim
+  in
+  let interpreter_state' =
+    Interpreter.load_primitive state.interpreter x prim
+  in
+  {
+    state with
+    desugarer = desugarer_state';
+    interpreter = interpreter_state';
+    typechecker = typechecker_state';
+  }
+
 let initial_state =
-  Language.Primitives.primitives
-  |> List.map Language.Ast.load_primitive_cmd
-  |> List.fold_left execute_command empty_state
+  let initial_state_without_primitives =
+    {
+      desugarer = Parser.Desugarer.initial_state;
+      interpreter = Interpreter.initial_state;
+      typechecker = Typechecker.initial_state;
+      top_computations = [];
+    }
+  in
+
+  List.fold_left load_primitive initial_state_without_primitives
+    Language.Primitives.primitives
