@@ -39,9 +39,8 @@ let main () =
       else Loader.initial_state
     in
     let state = List.fold_left Loader.load_file state config.filenames in
-    let proc = run state.interpreter (Loader.make_computation state) in
-    Format.printf "The computation has terminated in the configuration:@.%t@."
-      (Ast.print_computation proc)
+    let procs = List.map (run state.interpreter) state.top_computations in
+    Format.printf "%t" (Print.print_sequence "" Ast.print_computation procs)
   with Error.Error error ->
     Error.print error;
     exit 1
