@@ -24,12 +24,11 @@ let rec print_computation_reduction ?max_level red c ppf =
       print "@[<hov>%t;@ %t@]"
         (print_computation_reduction red c1)
         (Ast.print_computation c2)
-  | Interpreter.DoCtx red, Ast.Do (c1, (pat, c2)) ->
+  | DoCtx red, Ast.Do (c1, (pat, c2)) ->
       print "@[<hov>let@[<hov>@ %t =@ %t@] in@ %t@]" (Ast.print_pattern pat)
         (print_computation_reduction red c1)
         (Ast.print_computation c2)
-  | Interpreter.ComputationRedex redex, c ->
-      print_computation_redex ?max_level redex c ppf
+  | ComputationRedex redex, c -> print_computation_redex ?max_level redex c ppf
   | _, _ -> assert false
 
 let split_string sep str =

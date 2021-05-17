@@ -1,16 +1,15 @@
 open Utils
 module Ast = Language.Ast
 
-let make_top_step = function Interpreter.Step proc -> proc
+module type Backend = sig
+  include Loader.Backend
 
-let rec run (state : Interpreter.state) proc =
-  match Interpreter.top_steps state proc with
-  | [] -> proc
-  | steps ->
-      let i = Random.int (List.length steps) in
-      let _, top_step = List.nth steps i in
-      let proc' = make_top_step top_step in
-      run state proc'
+  val view_run_state : run_state -> unit
+end
+
+module Backend : Backend = InterpreterCli.Backend
+
+module Loader = Loader.Loader (Backend)
 
 type config = { filenames : string list; use_stdlib : bool }
 
@@ -29,6 +28,15 @@ let parse_args_to_config () =
   Arg.parse options anonymous usage;
   { filenames = List.rev !filenames; use_stdlib = !use_stdlib }
 
+let rec run (state : Backend.run_state) =
+  match Backend.steps state with
+  | [] -> state
+  | steps ->
+      let i = Random.int (List.length steps) in
+      let step = List.nth steps i in
+      let state' = Backend.step state step in
+      run state'
+
 let main () =
   let config = parse_args_to_config () in
   try
@@ -38,12 +46,10 @@ let main () =
         Loader.load_source Loader.initial_state Loader.stdlib_source
       else Loader.initial_state
     in
-    let state = List.fold_left Loader.load_file state config.filenames in
-    (* Reverse the list of top_computations to get the same order as in the source file. *)
-    let top_cmps = List.rev state.top_computations in
-    let procs = List.map (run state.interpreter) top_cmps in
-    Format.printf "@[<v>%t@]"
-      (Print.print_sequence "" Ast.print_computation procs)
+    let state' = List.fold_left Loader.load_file state config.filenames in
+    let run_state = Backend.run state'.backend in
+    let run_state' = run run_state in
+    Backend.view_run_state run_state'
   with Error.Error error ->
     Error.print error;
     exit 1

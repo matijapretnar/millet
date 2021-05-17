@@ -1,0 +1,6 @@
+(executable
+ (name cli)
+ (libraries interpreterCli loader)
+ (promote
+  (until-clean)
+  (into ../../..)))

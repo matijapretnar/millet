@@ -1,11 +1,11 @@
 (executable
  (name webInterface)
- (libraries ocaml-vdom loader)
+ (libraries ocaml-vdom loader interpreterWebInterface)
  (modes js)
  (link_flags -no-check-prims)
  (promote
   (until-clean)
-  (into ../../web)
+  (into ../../../web)
   (only webInterface.bc.js)))
 
 ;; This is an expanded form of the trick used in src/core/dune to generate the module
@@ -19,9 +19,9 @@
    ;; We need to repeat the following three lines for each included example.
    ;; The first line gives the name of the example and the second gives its source.
    (echo "({|Recursive functions on integers|}, {|")
-   (cat ../../examples/recursion.mlt)
+   (cat ../../../examples/recursion.mlt)
    (echo "|});")
    (echo "({|Natural numbers as an inductive type|}, {|")
-   (cat ../../examples/nat.mlt)
+   (cat ../../../examples/nat.mlt)
    (echo "|});")
    (echo "]"))))

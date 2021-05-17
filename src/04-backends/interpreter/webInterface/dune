@@ -1,0 +1,3 @@
+(library
+ (name interpreterWebInterface)
+ (libraries interpreter ocaml-vdom))

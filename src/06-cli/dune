@@ -1,6 +1,0 @@
-(executable
- (name cli)
- (libraries loader)
- (promote
-  (until-clean)
-  (into ../..)))

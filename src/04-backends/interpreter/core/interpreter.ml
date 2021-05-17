@@ -2,12 +2,12 @@ open Utils
 module Ast = Language.Ast
 module Const = Language.Const
 
-type state = {
+type environment = {
   variables : Ast.expression Ast.VariableMap.t;
   builtin_functions : (Ast.expression -> Ast.computation) Ast.VariableMap.t;
 }
 
-let initial_state =
+let initial_environment =
   {
     variables = Ast.VariableMap.empty;
     builtin_functions = Ast.VariableMap.empty;
@@ -21,45 +21,45 @@ type computation_reduction =
   | DoCtx of computation_reduction
   | ComputationRedex of computation_redex
 
-let rec eval_tuple state = function
+let rec eval_tuple env = function
   | Ast.Tuple exprs -> exprs
-  | Ast.Var x -> eval_tuple state (Ast.VariableMap.find x state.variables)
+  | Ast.Var x -> eval_tuple env (Ast.VariableMap.find x env.variables)
   | expr ->
       Error.runtime "Tuple expected but got %t" (Ast.print_expression expr)
 
-let rec eval_variant state = function
+let rec eval_variant env = function
   | Ast.Variant (lbl, expr) -> (lbl, expr)
-  | Ast.Var x -> eval_variant state (Ast.VariableMap.find x state.variables)
+  | Ast.Var x -> eval_variant env (Ast.VariableMap.find x env.variables)
   | expr ->
       Error.runtime "Variant expected but got %t" (Ast.print_expression expr)
 
-let rec eval_const state = function
+let rec eval_const env = function
   | Ast.Const c -> c
-  | Ast.Var x -> eval_const state (Ast.VariableMap.find x state.variables)
+  | Ast.Var x -> eval_const env (Ast.VariableMap.find x env.variables)
   | expr ->
       Error.runtime "Const expected but got %t" (Ast.print_expression expr)
 
-let rec match_pattern_with_expression state pat expr =
+let rec match_pattern_with_expression env pat expr =
   match pat with
   | Ast.PVar x -> Ast.VariableMap.singleton x expr
-  | Ast.PAnnotated (pat, _) -> match_pattern_with_expression state pat expr
+  | Ast.PAnnotated (pat, _) -> match_pattern_with_expression env pat expr
   | Ast.PAs (pat, x) ->
-      let subst = match_pattern_with_expression state pat expr in
+      let subst = match_pattern_with_expression env pat expr in
       Ast.VariableMap.add x expr subst
   | Ast.PTuple pats ->
-      let exprs = eval_tuple state expr in
+      let exprs = eval_tuple env expr in
       List.fold_left2
         (fun subst pat expr ->
-          let subst' = match_pattern_with_expression state pat expr in
+          let subst' = match_pattern_with_expression env pat expr in
           Ast.VariableMap.union (fun _ _ _ -> assert false) subst subst')
         Ast.VariableMap.empty pats exprs
   | Ast.PVariant (label, pat) -> (
-      match (pat, eval_variant state expr) with
+      match (pat, eval_variant env expr) with
       | None, (label', None) when label = label' -> Ast.VariableMap.empty
       | Some pat, (label', Some expr) when label = label' ->
-          match_pattern_with_expression state pat expr
+          match_pattern_with_expression env pat expr
       | _, _ -> raise PatternMismatch )
-  | Ast.PConst c when Const.equal c (eval_const state expr) ->
+  | Ast.PConst c when Const.equal c (eval_const env expr) ->
       Ast.VariableMap.empty
   | Ast.PNonbinding -> Ast.VariableMap.empty
   | _ -> raise PatternMismatch
@@ -158,46 +158,46 @@ let substitute subst comp =
   let subst = Ast.VariableMap.map (refresh_expression []) subst in
   substitute_computation subst comp
 
-let rec eval_function state = function
+let rec eval_function env = function
   | Ast.Lambda (pat, comp) ->
       fun arg ->
-        let subst = match_pattern_with_expression state pat arg in
+        let subst = match_pattern_with_expression env pat arg in
         substitute subst comp
   | Ast.RecLambda (f, (pat, comp)) as expr ->
       fun arg ->
         let subst =
-          match_pattern_with_expression state pat arg
+          match_pattern_with_expression env pat arg
           |> Ast.VariableMap.add f expr
         in
         substitute subst comp
   | Ast.Var x -> (
-      match Ast.VariableMap.find_opt x state.variables with
-      | Some expr -> eval_function state expr
-      | None -> Ast.VariableMap.find x state.builtin_functions )
+      match Ast.VariableMap.find_opt x env.variables with
+      | Some expr -> eval_function env expr
+      | None -> Ast.VariableMap.find x env.builtin_functions )
   | expr ->
       Error.runtime "Function expected but got %t" (Ast.print_expression expr)
 
-let step_in_context step state redCtx ctx term =
-  let terms' = step state term in
+let step_in_context step env redCtx ctx term =
+  let terms' = step env term in
   List.map (fun (red, term') -> (redCtx red, ctx term')) terms'
 
-let rec step_computation state = function
+let rec step_computation env = function
   | Ast.Return _ -> []
   | Ast.Match (expr, cases) ->
       let rec find_case = function
         | (pat, comp) :: cases -> (
-            match match_pattern_with_expression state pat expr with
+            match match_pattern_with_expression env pat expr with
             | subst -> [ (ComputationRedex Match, substitute subst comp) ]
             | exception PatternMismatch -> find_case cases )
         | [] -> []
       in
       find_case cases
   | Ast.Apply (expr1, expr2) ->
-      let f = eval_function state expr1 in
+      let f = eval_function env expr1 in
       [ (ComputationRedex ApplyFun, f expr2) ]
   | Ast.Do (comp1, comp2) -> (
       let comps1' =
-        step_in_context step_computation state
+        step_in_context step_computation env
           (fun red -> DoCtx red)
           (fun comp1' -> Ast.Do (comp1', comp2))
           comp1
@@ -205,23 +205,85 @@ let rec step_computation state = function
       match comp1 with
       | Ast.Return expr ->
           let pat, comp2' = comp2 in
-          let subst = match_pattern_with_expression state pat expr in
+          let subst = match_pattern_with_expression env pat expr in
           (ComputationRedex DoReturn, substitute subst comp2') :: comps1'
       | _ -> comps1' )
 
-let eval_top_let state x expr =
-  { state with variables = Ast.VariableMap.add x expr state.variables }
+type load_state = {
+  environment : environment;
+  computations : Ast.computation list;
+}
 
-let load_primitive state x prim =
+let initial_load_state =
+  { environment = initial_environment; computations = [] }
+
+let load_primitive load_state x prim =
   {
-    state with
-    builtin_functions =
-      Ast.VariableMap.add x
-        (Primitives.primitive_function prim)
-        state.builtin_functions;
+    load_state with
+    environment =
+      {
+        load_state.environment with
+        builtin_functions =
+          Ast.VariableMap.add x
+            (Primitives.primitive_function prim)
+            load_state.environment.builtin_functions;
+      };
   }
 
-type top_step = Step of Ast.computation
+let load_ty_def load_state _ = load_state
 
-let top_steps state proc =
-  step_computation state proc |> List.map (fun (red, proc) -> (red, Step proc))
+let load_top_let load_state x expr =
+  {
+    load_state with
+    environment =
+      {
+        load_state.environment with
+        variables = Ast.VariableMap.add x expr load_state.environment.variables;
+      };
+  }
+
+let load_top_do load_state comp =
+  { load_state with computations = load_state.computations @ [ comp ] }
+
+type run_state = { environment : environment; computation : Ast.computation }
+
+type step = { reduction : computation_reduction; computation : Ast.computation }
+
+let run load_state =
+  let comp =
+    match load_state.computations with
+    | [] -> Ast.Return (Ast.Tuple [])
+    | comp :: _ -> comp
+  in
+  { environment = load_state.environment; computation = comp }
+
+let steps run_state =
+  List.map
+    (fun (red, comp) -> { reduction = red; computation = comp })
+    (step_computation run_state.environment run_state.computation)
+
+let step run_state { computation; _ } =
+  { environment = run_state.environment; computation }
+
+(* let _ = run state comp in
+       state
+
+   let rec run state comp =
+     match step_computation state comp with
+     | [] ->
+         Format.printf "The computation has terminated in the configuration:@.%t@."
+           (Ast.print_computation comp)
+     | steps ->
+         let i = Random.int (List.length steps) in
+         let _, comp' = List.nth steps i in
+         run state comp'
+*)
+
+(* let rec run (state : Interpreter.state) proc =
+  match Interpreter.top_steps state proc with
+  | [] -> proc
+  | steps ->
+      let i = Random.int (List.length steps) in
+      let _, top_step = List.nth steps i in
+      let proc' = make_top_step top_step in
+      run state proc' *)
