@@ -179,7 +179,7 @@ let rec eval_function env = function
 
 let step_in_context step env redCtx ctx term =
   let terms' = step env term in
-  List.map (fun (red, term') -> (redCtx red, ctx term')) terms'
+  List.map (fun (red, term') -> (redCtx red, fun () -> ctx (term' ()))) terms'
 
 let rec step_computation env = function
   | Ast.Return _ -> []
@@ -187,14 +187,15 @@ let rec step_computation env = function
       let rec find_case = function
         | (pat, comp) :: cases -> (
             match match_pattern_with_expression env pat expr with
-            | subst -> [ (ComputationRedex Match, substitute subst comp) ]
+            | subst ->
+                [ (ComputationRedex Match, fun () -> substitute subst comp) ]
             | exception PatternMismatch -> find_case cases )
         | [] -> []
       in
       find_case cases
   | Ast.Apply (expr1, expr2) ->
       let f = eval_function env expr1 in
-      [ (ComputationRedex ApplyFun, f expr2) ]
+      [ (ComputationRedex ApplyFun, fun () -> f expr2) ]
   | Ast.Do (comp1, comp2) -> (
       let comps1' =
         step_in_context step_computation env
@@ -206,7 +207,8 @@ let rec step_computation env = function
       | Ast.Return expr ->
           let pat, comp2' = comp2 in
           let subst = match_pattern_with_expression env pat expr in
-          (ComputationRedex DoReturn, substitute subst comp2') :: comps1'
+          (ComputationRedex DoReturn, fun () -> substitute subst comp2')
+          :: comps1'
       | _ -> comps1' )
 
 type load_state = {
@@ -245,25 +247,39 @@ let load_top_let load_state x expr =
 let load_top_do load_state comp =
   { load_state with computations = load_state.computations @ [ comp ] }
 
-type run_state = { environment : environment; computation : Ast.computation }
+type run_state =
+  | Running of load_state
+  | Returning of Ast.expression * load_state
 
-type step = { reduction : computation_reduction; computation : Ast.computation }
+type reduction = ComputationReduction of computation_reduction | ReturnValue
 
-let run load_state =
-  let comp =
-    match load_state.computations with
-    | [] -> Ast.Return (Ast.Tuple [])
-    | comp :: _ -> comp
-  in
-  { environment = load_state.environment; computation = comp }
+type step = { reduction : reduction; next_state : unit -> run_state }
 
-let steps run_state =
-  List.map
-    (fun (red, comp) -> { reduction = red; computation = comp })
-    (step_computation run_state.environment run_state.computation)
+let run load_state = Running load_state
 
-let step run_state { computation; _ } =
-  { environment = run_state.environment; computation }
+let rec steps = function
+  | Running { computations = []; _ } -> []
+  | Running { computations = Ast.Return exp :: comps; environment } ->
+      [
+        {
+          reduction = ReturnValue;
+          next_state =
+            (fun () -> Returning (exp, { computations = comps; environment }));
+        };
+      ]
+  | Running { computations = comp :: comps; environment } ->
+      List.map
+        (fun (red, comp') ->
+          {
+            reduction = ComputationReduction red;
+            next_state =
+              (fun () ->
+                Running { computations = comp' () :: comps; environment });
+          })
+        (step_computation environment comp)
+  | Returning (_, load_state) -> steps (Running load_state)
+
+let step _ step = step.next_state ()
 
 (* let _ = run state comp in
        state

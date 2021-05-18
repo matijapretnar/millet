@@ -29,8 +29,9 @@ let parse_args_to_config () =
   { filenames = List.rev !filenames; use_stdlib = !use_stdlib }
 
 let rec run (state : Backend.run_state) =
+  Backend.view_run_state state;
   match Backend.steps state with
-  | [] -> state
+  | [] -> ()
   | steps ->
       let i = Random.int (List.length steps) in
       let step = List.nth steps i in
@@ -48,8 +49,7 @@ let main () =
     in
     let state' = List.fold_left Loader.load_file state config.filenames in
     let run_state = Backend.run state'.backend in
-    let run_state' = run run_state in
-    Backend.view_run_state run_state'
+    run run_state
   with Error.Error error ->
     Error.print error;
     exit 1
