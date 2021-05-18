@@ -1,4 +1,4 @@
-  $ ../../cli.exe tmp2.mlt
+  $ ../cli.exe test3.mlt
   val __compare_eq__ : α × α → bool
   val __compare_lt__ : α × α → bool
   val __compare_gt__ : α × α → bool
@@ -74,6 +74,9 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  val f : α → α
-  return (fun g ↦ let b = g true in (fun x ↦ return x) b)
-  return 14
+  type nat
+  val add : nat → nat → nat
+  val multiply : nat → nat → nat
+  val to_int : nat → int
+  val from_int : int → nat
+  return 42

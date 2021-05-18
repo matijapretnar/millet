@@ -1,0 +1,27 @@
+type nat =
+  | Zero
+  | Succ of nat
+
+let rec add m n =
+  match m with
+  | Zero -> n
+  | Succ m' -> Succ (add m' n)
+
+let rec multiply m n =
+  match m with
+  | Zero -> Zero
+  | Succ m' -> add n (multiply m' n)
+
+let rec to_int =
+  function
+  | Zero -> 0
+  | Succ m -> to_int m + 1
+
+let rec from_int n =
+  if n = 0 then Zero else Succ (from_int (n - 1))
+
+run
+  let six = from_int 6 in
+  let seven = Succ six in
+  let forty_two = multiply six seven in
+  to_int forty_two
