@@ -2,14 +2,7 @@
  (name parser)
  (libraries language))
 
-(env
- (dev
-  (flags
-   (:standard -warn-error -A))))
-
 (ocamllex lexer)
 
 (menhir
  (modules grammar))
-
-(include_subdirs unqualified)

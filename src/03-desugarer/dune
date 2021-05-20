@@ -1,8 +1,3 @@
 (library
  (name desugarer)
  (libraries parser language))
-
-(env
- (dev
-  (flags
-   (:standard -warn-error -A))))
