@@ -1,6 +1,4 @@
 open Utils
-module Ast = Language.Ast
-module Const = Language.Const
 
 type ty_name = string
 
@@ -25,7 +23,7 @@ type ty_param = string
 type ty = plain_ty annotated
 
 and plain_ty =
-  | TyConst of Const.ty
+  | TyConst of Language.Const.ty
   | TyApply of ty_name * ty list  (** [(ty1, ty2, ..., tyn) type_name] *)
   | TyParam of ty_param  (** ['a] *)
   | TyArrow of ty * ty  (** [ty1 -> ty2] *)
@@ -37,9 +35,9 @@ type label = string
 
 type operation = string
 
-let nil_label = Ast.nil_label_string
+let nil_label = Language.Ast.nil_label_string
 
-let cons_label = Ast.cons_label_string
+let cons_label = Language.Ast.cons_label_string
 
 type pattern = plain_pattern annotated
 
@@ -49,14 +47,14 @@ and plain_pattern =
   | PAs of pattern * variable
   | PTuple of pattern list
   | PVariant of label * pattern option
-  | PConst of Const.t
+  | PConst of Language.Const.t
   | PNonbinding
 
 type term = plain_term annotated
 
 and plain_term =
   | Var of variable  (** variables *)
-  | Const of Const.t  (** integers, strings, booleans, and floats *)
+  | Const of Language.Const.t  (** integers, strings, booleans, and floats *)
   | Annotated of term * ty
   | Tuple of term list  (** [(t1, t2, ..., tn)] *)
   | Variant of label * term option  (** [Label] or [Label t] *)

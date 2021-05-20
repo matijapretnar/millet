@@ -1,35 +1,35 @@
 (** Desugaring of syntax into the core language. *)
 
 open Utils
-module Syntax = Parser.Syntax
-module Ast = Language.Ast
+module Sugared = Parser.SugaredAst
+module Untyped = Language.Ast
 module Const = Language.Const
 module StringMap = Map.Make (String)
 
 type state = {
-  ty_names : Ast.ty_name StringMap.t;
-  ty_params : Ast.ty_param StringMap.t;
-  variables : Ast.variable StringMap.t;
-  labels : Ast.label StringMap.t;
+  ty_names : Untyped.ty_name StringMap.t;
+  ty_params : Untyped.ty_param StringMap.t;
+  variables : Untyped.variable StringMap.t;
+  labels : Untyped.label StringMap.t;
 }
 
 let initial_state =
   {
     ty_names =
       StringMap.empty
-      |> StringMap.add Syntax.bool_ty_name Ast.bool_ty_name
-      |> StringMap.add Syntax.int_ty_name Ast.int_ty_name
-      |> StringMap.add Syntax.unit_ty_name Ast.unit_ty_name
-      |> StringMap.add Syntax.string_ty_name Ast.string_ty_name
-      |> StringMap.add Syntax.float_ty_name Ast.float_ty_name
-      |> StringMap.add Syntax.empty_ty_name Ast.empty_ty_name
-      |> StringMap.add Syntax.list_ty_name Ast.list_ty_name;
+      |> StringMap.add Sugared.bool_ty_name Untyped.bool_ty_name
+      |> StringMap.add Sugared.int_ty_name Untyped.int_ty_name
+      |> StringMap.add Sugared.unit_ty_name Untyped.unit_ty_name
+      |> StringMap.add Sugared.string_ty_name Untyped.string_ty_name
+      |> StringMap.add Sugared.float_ty_name Untyped.float_ty_name
+      |> StringMap.add Sugared.empty_ty_name Untyped.empty_ty_name
+      |> StringMap.add Sugared.list_ty_name Untyped.list_ty_name;
     ty_params = StringMap.empty;
     variables = StringMap.empty;
     labels =
       StringMap.empty
-      |> StringMap.add Syntax.nil_label Ast.nil_label
-      |> StringMap.add Syntax.cons_label Ast.cons_label;
+      |> StringMap.add Sugared.nil_label Untyped.nil_label
+      |> StringMap.add Sugared.cons_label Untyped.cons_label;
   }
 
 let find_symbol ~loc map name =
@@ -45,151 +45,153 @@ let lookup_variable ~loc state = find_symbol ~loc state.variables
 
 let lookup_label ~loc state = find_symbol ~loc state.labels
 
-let rec desugar_ty state { Syntax.it = plain_ty; at = loc } =
+let rec desugar_ty state { Sugared.it = plain_ty; at = loc } =
   desugar_plain_ty ~loc state plain_ty
 
 and desugar_plain_ty ~loc state = function
-  | Syntax.TyApply (ty_name, tys) ->
+  | Sugared.TyApply (ty_name, tys) ->
       let ty_name' = lookup_ty_name ~loc state ty_name in
       let tys' = List.map (desugar_ty state) tys in
-      Ast.TyApply (ty_name', tys')
-  | Syntax.TyParam ty_param ->
+      Untyped.TyApply (ty_name', tys')
+  | Sugared.TyParam ty_param ->
       let ty_param' = lookup_ty_param ~loc state ty_param in
-      Ast.TyParam ty_param'
-  | Syntax.TyArrow (ty1, ty2) ->
+      Untyped.TyParam ty_param'
+  | Sugared.TyArrow (ty1, ty2) ->
       let ty1' = desugar_ty state ty1 in
       let ty2' = desugar_ty state ty2 in
-      Ast.TyArrow (ty1', ty2')
-  | Syntax.TyTuple tys ->
+      Untyped.TyArrow (ty1', ty2')
+  | Sugared.TyTuple tys ->
       let tys' = List.map (desugar_ty state) tys in
-      Ast.TyTuple tys'
-  | Syntax.TyConst c -> Ast.TyConst c
+      Untyped.TyTuple tys'
+  | Sugared.TyConst c -> Untyped.TyConst c
 
-let rec desugar_pattern state { Syntax.it = pat; at = loc } =
+let rec desugar_pattern state { Sugared.it = pat; at = loc } =
   let vars, pat' = desugar_plain_pattern ~loc state pat in
   (vars, pat')
 
 and desugar_plain_pattern ~loc state = function
-  | Syntax.PVar x ->
-      let x' = Ast.Variable.fresh x in
-      ([ (x, x') ], Ast.PVar x')
-  | Syntax.PAnnotated (pat, ty) ->
+  | Sugared.PVar x ->
+      let x' = Untyped.Variable.fresh x in
+      ([ (x, x') ], Untyped.PVar x')
+  | Sugared.PAnnotated (pat, ty) ->
       let vars, pat' = desugar_pattern state pat
       and ty' = desugar_ty state ty in
-      (vars, Ast.PAnnotated (pat', ty'))
-  | Syntax.PAs (pat, x) ->
+      (vars, Untyped.PAnnotated (pat', ty'))
+  | Sugared.PAs (pat, x) ->
       let vars, pat' = desugar_pattern state pat in
-      let x' = Ast.Variable.fresh x in
-      ((x, x') :: vars, Ast.PAs (pat', x'))
-  | Syntax.PTuple ps ->
+      let x' = Untyped.Variable.fresh x in
+      ((x, x') :: vars, Untyped.PAs (pat', x'))
+  | Sugared.PTuple ps ->
       let aux p (vars, ps') =
         let vars', p' = desugar_pattern state p in
         (vars' @ vars, p' :: ps')
       in
       let vars, ps' = List.fold_right aux ps ([], []) in
-      (vars, Ast.PTuple ps')
-  | Syntax.PVariant (lbl, None) ->
+      (vars, Untyped.PTuple ps')
+  | Sugared.PVariant (lbl, None) ->
       let lbl' = lookup_label ~loc state lbl in
-      ([], Ast.PVariant (lbl', None))
-  | Syntax.PVariant (lbl, Some pat) ->
+      ([], Untyped.PVariant (lbl', None))
+  | Sugared.PVariant (lbl, Some pat) ->
       let lbl' = lookup_label ~loc state lbl in
       let vars, pat' = desugar_pattern state pat in
-      (vars, Ast.PVariant (lbl', Some pat'))
-  | Syntax.PConst c -> ([], Ast.PConst c)
-  | Syntax.PNonbinding -> ([], Ast.PNonbinding)
+      (vars, Untyped.PVariant (lbl', Some pat'))
+  | Sugared.PConst c -> ([], Untyped.PConst c)
+  | Sugared.PNonbinding -> ([], Untyped.PNonbinding)
 
 let add_fresh_variables state vars =
   let aux variables (x, x') = StringMap.add x x' variables in
   let variables' = List.fold_left aux state.variables vars in
   { state with variables = variables' }
 
-let rec desugar_expression state { Syntax.it = term; at = loc } =
+let rec desugar_expression state { Sugared.it = term; at = loc } =
   let binds, expr = desugar_plain_expression ~loc state term in
   (binds, expr)
 
 and desugar_plain_expression ~loc state = function
-  | Syntax.Var x ->
+  | Sugared.Var x ->
       let x' = lookup_variable ~loc state x in
-      ([], Ast.Var x')
-  | Syntax.Const k -> ([], Ast.Const k)
-  | Syntax.Annotated (term, ty) ->
+      ([], Untyped.Var x')
+  | Sugared.Const k -> ([], Untyped.Const k)
+  | Sugared.Annotated (term, ty) ->
       let binds, expr = desugar_expression state term in
       let ty' = desugar_ty state ty in
-      (binds, Ast.Annotated (expr, ty'))
-  | Syntax.Lambda a ->
+      (binds, Untyped.Annotated (expr, ty'))
+  | Sugared.Lambda a ->
       let a' = desugar_abstraction state a in
-      ([], Ast.Lambda a')
-  | Syntax.Function cases ->
-      let x = Ast.Variable.fresh "arg" in
+      ([], Untyped.Lambda a')
+  | Sugared.Function cases ->
+      let x = Untyped.Variable.fresh "arg" in
       let cases' = List.map (desugar_abstraction state) cases in
-      ([], Ast.Lambda (Ast.PVar x, Ast.Match (Ast.Var x, cases')))
-  | Syntax.Tuple ts ->
+      ( [],
+        Untyped.Lambda (Untyped.PVar x, Untyped.Match (Untyped.Var x, cases'))
+      )
+  | Sugared.Tuple ts ->
       let binds, es = desugar_expressions state ts in
-      (binds, Ast.Tuple es)
-  | Syntax.Variant (lbl, None) ->
+      (binds, Untyped.Tuple es)
+  | Sugared.Variant (lbl, None) ->
       let lbl' = lookup_label ~loc state lbl in
-      ([], Ast.Variant (lbl', None))
-  | Syntax.Variant (lbl, Some term) ->
+      ([], Untyped.Variant (lbl', None))
+  | Sugared.Variant (lbl, Some term) ->
       let lbl' = lookup_label ~loc state lbl in
       let binds, expr = desugar_expression state term in
-      (binds, Ast.Variant (lbl', Some expr))
-  | ( Syntax.Apply _ | Syntax.Match _ | Syntax.Let _ | Syntax.LetRec _
-    | Syntax.Conditional _ ) as term ->
-      let x = Ast.Variable.fresh "b" in
-      let comp = desugar_computation state { Syntax.it = term; at = loc } in
-      let hoist = (Ast.PVar x, comp) in
-      ([ hoist ], Ast.Var x)
+      (binds, Untyped.Variant (lbl', Some expr))
+  | ( Sugared.Apply _ | Sugared.Match _ | Sugared.Let _ | Sugared.LetRec _
+    | Sugared.Conditional _ ) as term ->
+      let x = Untyped.Variable.fresh "b" in
+      let comp = desugar_computation state { Sugared.it = term; at = loc } in
+      let hoist = (Untyped.PVar x, comp) in
+      ([ hoist ], Untyped.Var x)
 
-and desugar_computation state { Syntax.it = term; at = loc } =
+and desugar_computation state { Sugared.it = term; at = loc } =
   let binds, comp = desugar_plain_computation ~loc state term in
-  List.fold_right (fun (p, c1) c2 -> Ast.Do (c1, (p, c2))) binds comp
+  List.fold_right (fun (p, c1) c2 -> Untyped.Do (c1, (p, c2))) binds comp
 
 and desugar_plain_computation ~loc state =
   let if_then_else e c1 c2 =
-    let true_p = Ast.PConst Const.of_true in
-    let false_p = Ast.PConst Const.of_false in
-    Ast.Match (e, [ (true_p, c1); (false_p, c2) ])
+    let true_p = Untyped.PConst Const.of_true in
+    let false_p = Untyped.PConst Const.of_false in
+    Untyped.Match (e, [ (true_p, c1); (false_p, c2) ])
   in
   function
-  | Syntax.Apply
-      ({ it = Syntax.Var "(&&)"; _ }, { it = Syntax.Tuple [ t1; t2 ]; _ }) ->
+  | Sugared.Apply
+      ({ it = Sugared.Var "(&&)"; _ }, { it = Sugared.Tuple [ t1; t2 ]; _ }) ->
       let binds1, e1 = desugar_expression state t1 in
       let c1 = desugar_computation state t2 in
-      let c2 = Ast.Return (Ast.Const (Const.Boolean false)) in
+      let c2 = Untyped.Return (Untyped.Const (Const.Boolean false)) in
       (binds1, if_then_else e1 c1 c2)
-  | Syntax.Apply
-      ({ it = Syntax.Var "(||)"; _ }, { it = Syntax.Tuple [ t1; t2 ]; _ }) ->
+  | Sugared.Apply
+      ({ it = Sugared.Var "(||)"; _ }, { it = Sugared.Tuple [ t1; t2 ]; _ }) ->
       let binds1, e1 = desugar_expression state t1 in
-      let c1 = Ast.Return (Ast.Const (Const.Boolean true)) in
+      let c1 = Untyped.Return (Untyped.Const (Const.Boolean true)) in
       let c2 = desugar_computation state t2 in
       (binds1, if_then_else e1 c1 c2)
-  | Syntax.Apply (t1, t2) ->
+  | Sugared.Apply (t1, t2) ->
       let binds1, e1 = desugar_expression state t1 in
       let binds2, e2 = desugar_expression state t2 in
-      (binds1 @ binds2, Ast.Apply (e1, e2))
-  | Syntax.Match (t, cs) ->
+      (binds1 @ binds2, Untyped.Apply (e1, e2))
+  | Sugared.Match (t, cs) ->
       let binds, e = desugar_expression state t in
       let cs' = List.map (desugar_abstraction state) cs in
-      (binds, Ast.Match (e, cs'))
-  | Syntax.Conditional (t, t1, t2) ->
+      (binds, Untyped.Match (e, cs'))
+  | Sugared.Conditional (t, t1, t2) ->
       let binds, e = desugar_expression state t in
       let c1 = desugar_computation state t1 in
       let c2 = desugar_computation state t2 in
       (binds, if_then_else e c1 c2)
-  | Syntax.Let (pat, term1, term2) ->
+  | Sugared.Let (pat, term1, term2) ->
       let c1 = desugar_computation state term1 in
       let c2 = desugar_abstraction state (pat, term2) in
-      ([], Ast.Do (c1, c2))
-  | Syntax.LetRec (x, term1, term2) ->
+      ([], Untyped.Do (c1, c2))
+  | Sugared.LetRec (x, term1, term2) ->
       let state', f, comp1 = desugar_let_rec_def state (x, term1) in
       let c = desugar_computation state' term2 in
-      ([], Ast.Do (Ast.Return comp1, (Ast.PVar f, c)))
+      ([], Untyped.Do (Untyped.Return comp1, (Untyped.PVar f, c)))
   (* The remaining cases are expressions, which we list explicitly to catch any
-     future changesyntax. *)
-  | ( Syntax.Var _ | Syntax.Const _ | Syntax.Annotated _ | Syntax.Tuple _
-    | Syntax.Variant _ | Syntax.Lambda _ | Syntax.Function _ ) as term ->
+     future changeSugared. *)
+  | ( Sugared.Var _ | Sugared.Const _ | Sugared.Annotated _ | Sugared.Tuple _
+    | Sugared.Variant _ | Sugared.Lambda _ | Sugared.Function _ ) as term ->
       let binds, expr = desugar_expression state { it = term; at = loc } in
-      (binds, Ast.Return expr)
+      (binds, Untyped.Return expr)
 
 and desugar_abstraction state (pat, term) =
   let vars, pat' = desugar_pattern state pat in
@@ -206,28 +208,28 @@ and desugar_guarded_abstraction state (pat, term1, term2) =
 
 and desugar_promise_abstraction ~loc state abs2 =
   match desugar_abstraction state abs2 with
-  | Ast.PVar p, comp' -> (p, comp')
-  | Ast.PNonbinding, comp' ->
-      let p = Ast.Variable.fresh "_" in
+  | Untyped.PVar p, comp' -> (p, comp')
+  | Untyped.PNonbinding, comp' ->
+      let p = Untyped.Variable.fresh "_" in
       (p, comp')
   | _ -> Error.syntax ~loc "Variable or underscore expected"
 
 and desugar_let_rec_def state (f, { it = exp; at = loc }) =
-  let f' = Ast.Variable.fresh f in
+  let f' = Untyped.Variable.fresh f in
   let state' = add_fresh_variables state [ (f, f') ] in
   let abs' =
     match exp with
-    | Syntax.Lambda a -> desugar_abstraction state' a
-    | Syntax.Function cs ->
-        let x = Ast.Variable.fresh "rf" in
+    | Sugared.Lambda a -> desugar_abstraction state' a
+    | Sugared.Function cs ->
+        let x = Untyped.Variable.fresh "rf" in
         let cs = List.map (desugar_abstraction state') cs in
-        let new_match = Ast.Match (Ast.Var x, cs) in
-        (Ast.PVar x, new_match)
+        let new_match = Untyped.Match (Untyped.Var x, cs) in
+        (Untyped.PVar x, new_match)
     | _ ->
         Error.syntax ~loc
           "This kind of expression is not allowed in a recursive definition"
   in
-  let expr = Ast.RecLambda (f', abs') in
+  let expr = Untyped.RecLambda (f', abs') in
   (state', f', expr)
 
 and desugar_expressions state = function
@@ -258,44 +260,44 @@ let add_fresh_ty_params state vars =
   { state with ty_params = ty_params' }
 
 let desugar_ty_def state = function
-  | Syntax.TyInline ty -> (state, Ast.TyInline (desugar_ty state ty))
-  | Syntax.TySum variants ->
+  | Sugared.TyInline ty -> (state, Untyped.TyInline (desugar_ty state ty))
+  | Sugared.TySum variants ->
       let aux state (label, ty) =
-        let label' = Ast.Label.fresh label in
+        let label' = Untyped.Label.fresh label in
         let ty' = Option.map (desugar_ty state) ty in
         let state' = add_label state label label' in
         (state', (label', ty'))
       in
       let state', variants' = List.fold_map aux state variants in
-      (state', Ast.TySum variants')
+      (state', Untyped.TySum variants')
 
 let desugar_command state = function
-  | Syntax.TyDef defs ->
+  | Sugared.TyDef defs ->
       let def_name (_, ty_name, _) =
-        let ty_name' = Ast.TyName.fresh ty_name in
+        let ty_name' = Untyped.TyName.fresh ty_name in
         (ty_name, ty_name')
       in
       let new_names = List.map def_name defs in
       let state' = add_fresh_ty_names state new_names in
       let aux (params, _, ty_def) (_, ty_name') (state', defs) =
-        let params' = List.map (fun a -> (a, Ast.TyParam.fresh a)) params in
+        let params' = List.map (fun a -> (a, Untyped.TyParam.fresh a)) params in
         let state'' = add_fresh_ty_params state' params' in
         let state''', ty_def' = desugar_ty_def state'' ty_def in
         (state''', (List.map snd params', ty_name', ty_def') :: defs)
       in
       let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
-      (state'', Ast.TyDef defs')
-  | Syntax.TopLet (x, term) ->
-      let x' = Ast.Variable.fresh x in
+      (state'', Untyped.TyDef defs')
+  | Sugared.TopLet (x, term) ->
+      let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state [ (x, x') ] in
       let expr = desugar_pure_expression state' term in
-      (state', Ast.TopLet (x', expr))
-  | Syntax.TopDo term ->
+      (state', Untyped.TopLet (x', expr))
+  | Sugared.TopDo term ->
       let comp = desugar_computation state term in
-      (state, Ast.TopDo comp)
-  | Syntax.TopLetRec (f, term) ->
+      (state, Untyped.TopDo comp)
+  | Sugared.TopLetRec (f, term) ->
       let state', f, expr = desugar_let_rec_def state (f, term) in
-      (state', Ast.TopLet (f, expr))
+      (state', Untyped.TopLet (f, expr))
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in

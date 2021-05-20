@@ -1,5 +1,5 @@
 %{
-  open Syntax
+  open SugaredAst
   open Utils
 %}
 
@@ -12,8 +12,8 @@
 %token <string> STRING
 %token <bool> BOOL
 %token <float> FLOAT
-%token <Syntax.label> UNAME
-%token <Syntax.ty_param> PARAM
+%token <SugaredAst.label> UNAME
+%token <SugaredAst.ty_param> PARAM
 %token TYPE ARROW OF
 %token MATCH WITH FUNCTION
 %token RUN LET REC AND IN
@@ -39,8 +39,8 @@
 %left  INFIXOP3 STAR MOD LAND LOR LXOR
 %right INFIXOP4 LSL LSR ASR
 
-%start <Syntax.term> payload
-%start <Syntax.command list> commands
+%start <SugaredAst.term> payload
+%start <SugaredAst.command list> commands
 
 %%
 
@@ -151,11 +151,11 @@ plain_simple_term:
     { Const cst }
   | LBRACK ts = separated_list(SEMI, comma_term) RBRACK
     {
-      let nil = {it= Variant (Syntax.nil_label, None); at= Location.of_lexeme $endpos} in
+      let nil = {it= Variant (nil_label, None); at= Location.of_lexeme $endpos} in
       let cons t ts =
         let loc = t.at in
         let tuple = {it= Tuple [t; ts];at= loc} in
-        {it= Variant (Syntax.cons_label, Some tuple); at= loc}
+        {it= Variant (cons_label, Some tuple); at= loc}
       in
       (List.fold_right cons ts nil).it
     }
@@ -172,13 +172,13 @@ plain_simple_term:
 
 const:
   | n = INT
-    { Const.of_integer n }
+    { Language.Const.of_integer n }
   | str = STRING
-    { Const.of_string str }
+    { Language.Const.of_string str }
   | b = BOOL
-    { Const.of_boolean b }
+    { Language.Const.of_boolean b }
   | f = FLOAT
-    { Const.of_float f }
+    { Language.Const.of_float f }
 
 case:
   | p = pattern ARROW t = term
@@ -226,7 +226,7 @@ plain_cons_pattern:
     { p.it }
   | p1 = variant_pattern CONS p2 = cons_pattern
     { let ptuple = {it= PTuple [p1; p2]; at= Location.of_lexeme $startpos} in
-      PVariant (Syntax.cons_label, Some ptuple) }
+      PVariant (cons_label, Some ptuple) }
 
 variant_pattern: mark_position(plain_variant_pattern) { $1 }
 plain_variant_pattern:
@@ -247,11 +247,11 @@ plain_simple_pattern:
     { PConst cst }
   | LBRACK ts = separated_list(SEMI, pattern) RBRACK
     {
-      let nil = {it= PVariant (Syntax.nil_label, None);at= Location.of_lexeme $endpos} in
+      let nil = {it= PVariant (nil_label, None);at= Location.of_lexeme $endpos} in
       let cons t ts =
         let loc = t.at in
         let tuple = {it= PTuple [t; ts]; at= loc} in
-        {it= PVariant (Syntax.cons_label, Some tuple); at= loc}
+        {it= PVariant (cons_label, Some tuple); at= loc}
       in
       (List.fold_right cons ts nil).it
     }
