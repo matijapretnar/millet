@@ -31,16 +31,14 @@ end
 
 module Loader (Backend : Backend) = struct
   type state = {
-    desugarer : Parser.Desugarer.state;
+    desugarer : Desugarer.state;
     backend : Backend.load_state;
     typechecker : Typechecker.state;
   }
 
   let load_primitive state prim =
     let x = Ast.Variable.fresh (Language.Primitives.primitive_name prim) in
-    let desugarer_state' =
-      Parser.Desugarer.load_primitive state.desugarer x prim
-    in
+    let desugarer_state' = Desugarer.load_primitive state.desugarer x prim in
     let typechecker_state' =
       Typechecker.load_primitive state.typechecker x prim
     in
@@ -54,7 +52,7 @@ module Loader (Backend : Backend) = struct
   let initial_state =
     let initial_state_without_primitives =
       {
-        desugarer = Parser.Desugarer.initial_state;
+        desugarer = Desugarer.initial_state;
         typechecker = Typechecker.initial_state;
         backend = Backend.initial_load_state;
       }
@@ -102,7 +100,7 @@ module Loader (Backend : Backend) = struct
 
   let load_commands state cmds =
     let desugarer_state', cmds' =
-      List.fold_map Parser.Desugarer.desugar_command state.desugarer cmds
+      List.fold_map Desugarer.desugar_command state.desugarer cmds
     in
     let state' = { state with desugarer = desugarer_state' } in
     List.fold_left execute_command state' cmds'
