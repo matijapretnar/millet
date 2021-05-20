@@ -1,4 +1,6 @@
-open Language
+module Ast = Language.Ast
+module Const = Language.Const
+module Primitives = Language.Primitives
 
 let poly_type ty =
   let a = Ast.TyParam.fresh "poly" in

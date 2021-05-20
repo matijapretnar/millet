@@ -1,5 +1,7 @@
 open Utils
-open Language
+module Ast = Language.Ast
+module Const = Language.Const
+module Primitives = Language.Primitives
 
 let binary_function f = function
   | Ast.Tuple [ expr1; expr2 ] -> f expr1 expr2

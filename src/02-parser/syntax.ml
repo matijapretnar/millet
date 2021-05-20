@@ -18,9 +18,11 @@ let list_ty_name = "list"
 
 let empty_ty_name = "empty"
 
+type 'a annotated = { it : 'a; at : Location.t }
+
 type ty_param = string
 
-type ty = plain_ty Location.located
+type ty = plain_ty annotated
 
 and plain_ty =
   | TyConst of Const.ty
@@ -39,7 +41,7 @@ let nil_label = Ast.nil_label_string
 
 let cons_label = Ast.cons_label_string
 
-type pattern = plain_pattern Location.located
+type pattern = plain_pattern annotated
 
 and plain_pattern =
   | PVar of variable
@@ -50,7 +52,7 @@ and plain_pattern =
   | PConst of Const.t
   | PNonbinding
 
-type term = plain_term Location.located
+type term = plain_term annotated
 
 and plain_term =
   | Var of variable  (** variables *)

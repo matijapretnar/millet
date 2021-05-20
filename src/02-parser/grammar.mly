@@ -1,7 +1,6 @@
 %{
   open Syntax
   open Utils
-  open Utils.Location
 %}
 
 %token LPAREN RPAREN LBRACK RBRACK
@@ -47,7 +46,7 @@
 
 (* Toplevel syntax *)
 
-(* If you're going to "optimize" this, please of_lexeme sure we don't require;; at the
+(* If you're going to "optimize" this, please Location.of_lexeme sure we don't require;; at the
    end of the file. *)
 commands:
   | EOF
@@ -101,9 +100,9 @@ plain_comma_term:
 binop_term: mark_position(plain_binop_term) { $1 }
 plain_binop_term:
   | t1 = binop_term op = binop t2 = binop_term
-    { Apply ({it= Apply ({it= Var op; at=of_lexeme $startpos}, t1); at=of_lexeme $startpos}, t2) }
+    { Apply ({it= Apply ({it= Var op; at=Location.of_lexeme $startpos}, t1); at=Location.of_lexeme $startpos}, t2) }
   | t1 = binop_term CONS t2 = binop_term
-    { let tuple = {it= Tuple [t1; t2]; at= of_lexeme $startpos} in
+    { let tuple = {it= Tuple [t1; t2]; at= Location.of_lexeme $startpos} in
       Variant (cons_label, Some tuple) }
   | t = plain_uminus_term
     { t }
@@ -111,10 +110,10 @@ plain_binop_term:
 uminus_term: mark_position(plain_uminus_term) { $1 }
 plain_uminus_term:
   | MINUS t = uminus_term
-    { let op_loc = of_lexeme $startpos($1) in
+    { let op_loc = Location.of_lexeme $startpos($1) in
       Apply ({it= Var "(~-)"; at= op_loc}, t) }
   | MINUSDOT t = uminus_term
-    { let op_loc = of_lexeme $startpos($1) in
+    { let op_loc = Location.of_lexeme $startpos($1) in
       Apply ({it= Var "(~-.)"; at= op_loc}, t) }
   | t = plain_app_term
     { t }
@@ -136,7 +135,7 @@ prefix_term: mark_position(plain_prefix_term) { $1 }
 plain_prefix_term:
   | op = prefixop t = simple_term
     {
-      let op_loc = of_lexeme $startpos(op) in
+      let op_loc = Location.of_lexeme $startpos(op) in
       Apply ({it= Var op; at= op_loc}, t)
     }
   | t = plain_simple_term
@@ -152,7 +151,7 @@ plain_simple_term:
     { Const cst }
   | LBRACK ts = separated_list(SEMI, comma_term) RBRACK
     {
-      let nil = {it= Variant (Syntax.nil_label, None); at= of_lexeme $endpos} in
+      let nil = {it= Variant (Syntax.nil_label, None); at= Location.of_lexeme $endpos} in
       let cons t ts =
         let loc = t.at in
         let tuple = {it= Tuple [t; ts];at= loc} in
@@ -189,19 +188,19 @@ lambdas0(SEP):
   | SEP t = term
     { t }
   | p = simple_pattern t = lambdas0(SEP)
-    { {it= Lambda (p, t); at= of_lexeme $startpos} }
+    { {it= Lambda (p, t); at= Location.of_lexeme $startpos} }
   | COLON ty = ty SEP t = term
-    { {it= Annotated (t, ty); at= of_lexeme $startpos} }
+    { {it= Annotated (t, ty); at= Location.of_lexeme $startpos} }
 
 lambdas1(SEP):
   | p = simple_pattern t = lambdas0(SEP)
-    { {it= Lambda (p, t); at= of_lexeme $startpos} }
+    { {it= Lambda (p, t); at= Location.of_lexeme $startpos} }
 
 let_def:
   | p = pattern EQUAL t = term
     { (p, t) }
   | p = pattern COLON ty= ty EQUAL t = term
-    { (p, {it= Annotated(t, ty); at= of_lexeme $startpos}) }
+    { (p, {it= Annotated(t, ty); at= Location.of_lexeme $startpos}) }
   | x = mark_position(ident) t = lambdas1(EQUAL)
     { ({it= PVar x.it; at= x.at}, t) }
 
@@ -226,7 +225,7 @@ plain_cons_pattern:
   | p = variant_pattern
     { p.it }
   | p1 = variant_pattern CONS p2 = cons_pattern
-    { let ptuple = {it= PTuple [p1; p2]; at= of_lexeme $startpos} in
+    { let ptuple = {it= PTuple [p1; p2]; at= Location.of_lexeme $startpos} in
       PVariant (Syntax.cons_label, Some ptuple) }
 
 variant_pattern: mark_position(plain_variant_pattern) { $1 }
@@ -248,7 +247,7 @@ plain_simple_pattern:
     { PConst cst }
   | LBRACK ts = separated_list(SEMI, pattern) RBRACK
     {
-      let nil = {it= PVariant (Syntax.nil_label, None);at= of_lexeme $endpos} in
+      let nil = {it= PVariant (Syntax.nil_label, None);at= Location.of_lexeme $endpos} in
       let cons t ts =
         let loc = t.at in
         let tuple = {it= PTuple [t; ts]; at= loc} in
@@ -341,7 +340,7 @@ cases(case):
 
 mark_position(X):
   x = X
-  { {it= x; at= of_lexeme $startpos}}
+  { {it= x; at= Location.of_lexeme $startpos}}
 
 params:
   |

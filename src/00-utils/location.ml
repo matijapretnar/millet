@@ -12,7 +12,3 @@ let of_lexeme position =
   and line = position.Lexing.pos_lnum
   and column = position.Lexing.pos_cnum - position.Lexing.pos_bol + 1 in
   { filename; line; column }
-
-type 'a located = { it : 'a; at : t }
-
-let add_loc ~loc it = { it; at = loc }
