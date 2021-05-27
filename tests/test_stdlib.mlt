@@ -1,0 +1,274 @@
+(* Check every thing in the standard library. *)
+
+run "test less"
+
+run 1 < 2
+
+run true < false
+
+run (1,true) < (0,false)
+
+(* More comprehensive checking of < can be found in test_less_than.eff *)
+
+run "test equal"
+
+run 1 = 1
+
+run 1.0 = 1.0
+
+(* More comprehensive checking of = can be found in test_equality.eff *)
+
+(* Assert is not supported. 
+
+run "test assert"
+
+run assert ("a" = "a");;
+
+run assert (1.0 /. 0.0 = infinity);;
+
+run assert (-. 1.0 /. 0.0 = neg_infinity);;
+
+run assert (0.0 /. 0.0 = nan);;
+*)
+
+run "test tilda_minus"
+
+run ~-1
+
+run ~-. 3.14159
+
+run ~-. 1.0
+
+run "test integer operations"
+
+run 2 + 2
+
+run 2 * 2
+
+run 42 - 23
+
+run 42 - ~-23
+
+run 100 / 3
+
+(* run 1 / 0 *) (* Raises Division_by_0. *)
+
+(* run 0 / 0 *) (* Raises Division_by_0. *)
+
+run 0 / 1
+
+run 5 mod 3
+
+run 0 mod 1
+
+(* run 0 mod 0 *) (* Raises Division_by_0. *)
+
+(* run 1 mod 0 *) (* Raises Division_by_0. *)
+
+run "test float operations"
+
+run 2. ** 3.
+
+run 3.14 +. 2.7
+
+run 3.14 *. 2.7
+
+run 3.14 -. 2.7
+
+run 3.14 /. 2.7
+
+run 1.0 /. 0.0
+
+(* String concatenation is not supported. 
+
+  run "test string concatenation"
+
+  run "cherry" ^ "pie" *) 
+
+(* Casting is not supported.
+
+run "test casting"
+
+run string_of_float 12.
+
+run string_of_float 12.0
+
+run string_of_float -12.000009
+
+run string_of_int 0
+
+run string_of_int -18
+*)
+
+run to_string 13
+
+run to_string [1,2,3]
+
+run to_string (1,2,3)
+
+run to_string (fun x -> x)
+
+(* Casting is not supported.
+
+run int_of_float ~-.1.5
+
+run int_of_float 12.0001
+
+run float_of_int 42
+*)
+
+run "test some and none"
+
+run None
+
+run Some 3
+
+run "test ignore"
+
+run ignore (2 + 3)
+
+run "test not"
+
+run not true
+
+run "test compare"
+
+run 3 > 2
+
+run "foo" > "bar"
+
+run 1 <= 1
+
+run 2 >= 1
+
+run 2 <> 3
+
+run "test range"
+
+run range 4 9
+
+run "test map"
+
+run map (fun x -> x * x) [1;2;3;4;5]
+
+run "test take"
+
+(* TODO: It should evaluate to 5 instead of 9.
+  It seems that precedence for `*` needs to be fixed.*)
+run 3 * 1 + 2 
+
+run take (fun k -> 3 * k + 2) 20
+
+run "test fold_left and fold_right"
+
+run fold_left (fun a y -> (2 * a) + y) 1 [1;2;3;4;5]
+
+run fold_right (fun y a -> (2 * a) + y) [1;2;3;4;5] 1
+
+(* Concatenation and check are not supported.
+let test_iter = (fun k -> check ("iter " ^ to_string k)) [1;2;3;4;5];;
+*)
+
+run "test forall, exists and mem"
+
+run forall (fun k -> (k mod 3) = 2) [1;2;3;4;5]
+
+run exists (fun k -> (k mod 3) = 2) [1;2;3;4;5]
+
+run mem "foo" ["bar"; "baz"]
+
+run "test filter"
+
+run filter (fun k -> k > 3) [1;2;3;4;5]
+
+run "test complement and intersection"
+
+run complement [1; 2; 3; 4; 5; 6] [2; 4; 8]
+
+run intersection [1; 2; 3; 4; 5; 6] [2; 4; 8]
+
+run "test zip and unzip"
+
+run zip [1;2;3] ["a"; "b"; "c"]
+
+(* Check is not supported.
+run check (zip [1;2;3;4;5;6] ["a"; "b"; "c"])
+*)
+
+run unzip [(1, "a"); (2, "b"); (3, "c")]
+
+run "test reverse"
+
+run reverse [1;2;3;4;5]
+
+run "test concatenate lists"
+
+run [1;2;3] @ [4;5;6]
+
+run "test length, hd and tl"
+
+run length [1;2;3;4;5]
+
+run hd [1;2;3;4]
+
+(* Check is not supported.
+check (hd []);;
+*)
+
+run tl [1;2;3;4]
+
+(* Check is not supported.
+check (tl []);;
+*)
+
+run "test abs, min and max"
+
+run abs 5, abs (~-5), abs(-5)
+
+run min 1 2
+
+run max 1 2
+
+run "test gcd and lcm"
+
+run gcd 12 8
+
+run lcm 12 8
+
+run "test odd and even"
+
+run odd 42
+
+run even 42
+
+run "test id"
+
+run id 5
+
+run id id
+
+run "test compose and reverse apply"
+
+run compose (fun k -> k * k) (fun j -> j +4) 10
+
+run (3 |> (fun x -> x)) |> (+) 4
+
+run "test fst and snd"
+
+run fst ("foo", 4)
+
+run snd ("foo", 4)
+
+(* Check is not supported.
+
+run check (perform (Print "Does this work?")) (* `perform` is not supported. *)
+
+run check (print "How about now?") (* `print` is not supported. *)
+
+run check (print 12) 
+
+run check (perform Read)
+
+run check (failwith "The cows are home.") (* `failwith` is not supported. *)
+
+*)

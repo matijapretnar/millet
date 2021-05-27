@@ -1,0 +1,27 @@
+type baire = int -> int
+
+type 'a tree = Empty | Node of 'a * 'a tree * 'a tree
+
+(* Records are currently not supported.
+type complex = {re : float; im : float}
+*)
+
+type ('k,'v) assoc = ('k * 'v) list
+
+
+(* Mutually recursive types. *)
+type cow = bull -> int
+
+and bull =
+   | Tail
+   | Legs of bull list
+   | Horns of cow
+
+
+run Tail
+
+(* Records are currently not supported.
+run {re = 1.2; im = 2.4}
+*)
+
+run (Node (10, Empty, Node (20, Empty, Empty)))

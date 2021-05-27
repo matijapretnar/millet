@@ -39,8 +39,11 @@ let main () =
       else Loader.initial_state
     in
     let state = List.fold_left Loader.load_file state config.filenames in
-    let procs = List.map (run state.interpreter) state.top_computations in
-    Format.printf "%t" (Print.print_sequence "" Ast.print_computation procs)
+    (* Reverse the list of top_computations to get the same order as in the source file. *)
+    let top_cmps = List.rev state.top_computations in
+    let procs = List.map (run state.interpreter) top_cmps in
+    Format.printf "@[<v>%t@]"
+      (Print.print_sequence "" Ast.print_computation procs)
   with Error.Error error ->
     Error.print error;
     exit 1

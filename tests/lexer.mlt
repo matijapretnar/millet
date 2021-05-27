@@ -1,0 +1,22 @@
+(* Tests for lexer. *)
+
+run let _a = 10 in _a
+run let a' = 20 in a'
+run let a'b' = 30 in a'b'
+run let a''' = 40 in a'''
+
+run -1_000_000_000
+run 42
+run (-0b101010)
+run 0b101010
+run 0B101010
+run 0xabcdef
+run 0XAbCdEf
+run 0o76510
+run 0O76510
+
+run 3.141592
+run 4.141_592
+run -51592e-4
+run 61592E-4
+run -0.00314e+3___ 

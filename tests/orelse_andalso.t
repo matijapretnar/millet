@@ -1,4 +1,4 @@
-  $ ../cli.exe test4.mlt
+  $ ../cli.exe orelse_andalso.mlt
   val __compare_eq__ : α × α → bool
   val __compare_lt__ : α × α → bool
   val __compare_gt__ : α × α → bool
@@ -74,7 +74,3 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  val fact : int → int
-  val fib : int → int
-  val gcd : int → int → int
-  return 5

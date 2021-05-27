@@ -1,4 +1,4 @@
-  $ ../cli.exe test3.mlt
+  $ ../cli.exe typing.mlt
   val __compare_eq__ : α × α → bool
   val __compare_lt__ : α × α → bool
   val __compare_gt__ : α × α → bool
@@ -74,9 +74,23 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  type nat
-  val add : nat → nat → nat
-  val multiply : nat → nat → nat
-  val to_int : nat → int
-  val from_int : int → nat
-  return 42
+  val b : int
+  val b : bool
+  val b : string
+  val b : unit
+  val b : float
+  val t : int × int
+  val t : α list × string
+  type cow
+  val v : (string, α) cow
+  val v : (α, string) cow
+  val v : (int, string list) cow → (string list, int) cow
+  val f : α → α
+  val f : α → α × α
+  val f : (α → α) × β list
+  val f : α → β → α
+  val v : α list list list
+  val f : α → β → α
+  val h : α → α
+  return (fun y ↦ return y)
+  return h

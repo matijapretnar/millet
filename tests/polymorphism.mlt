@@ -1,0 +1,29 @@
+(* The following expression is currently not supported
+    ```let a = (let f x = x in (f 5, f "foo")```) because:
+    - Expressions of the form ```let a = <expr>, where <expr> is not a pure
+        expressions, are not supported.
+    - Expressions similar to ```let f x = x in (f 5, f "foo")``` are not
+        supported. Type checking fails with error
+        "Typing error: Cannot unify int = string".
+*)
+
+let f x = x
+run (f 5, f "foo")
+
+let g x y = (fun x y -> x) x y
+
+run (g 4 "foo", g "foo" 4)
+
+let u = []
+
+run (1 :: u, "foo" :: u)
+
+let v = [[]]
+
+run ([] :: v, [2] :: v)
+
+run (fun x -> let h t u = u in h x x)
+
+run (fun x -> let h t u = t in h x x)
+
+let rec u x = u x

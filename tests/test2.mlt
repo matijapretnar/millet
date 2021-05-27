@@ -1,3 +1,0 @@
-let f x = x
-run (fun x -> x) 14
-run (fun f g -> f (g true)) (fun x -> x)

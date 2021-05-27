@@ -1,4 +1,4 @@
-  $ ../cli.exe test1.mlt
+  $ ../cli.exe test_less_then.mlt
   val __compare_eq__ : α × α → bool
   val __compare_lt__ : α × α → bool
   val __compare_gt__ : α × α → bool
@@ -74,5 +74,13 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  return 7
-  return 5
+  return false
+  return true
+  return false
+  return false
+  return true
+  return false
+  return false
+  return "composite values"
+  return true
+  return false

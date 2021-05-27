@@ -1,0 +1,15 @@
+(* The primitives && || are not supported.
+
+run (false && (1 / 0 = 5))
+
+run (true || (1 / 0 = 5))
+
+run (false && false)
+run (false && true)
+run (true  && false)
+run (true  && true)
+
+run (false || false)
+run (false || true)
+run (true  || false)
+run (true  || true) *)
