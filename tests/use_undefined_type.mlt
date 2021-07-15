@@ -1,0 +1,3 @@
+type foo = One of bar | Two of int
+
+type bar = int -> int

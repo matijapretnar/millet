@@ -1,0 +1,6 @@
+(* A pattern must be linear.
+
+   TODO: All the identifiers in a pattern should be unique. The following
+   expression should fail.*)
+
+run let (a,a) = (10, 20) in a

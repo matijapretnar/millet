@@ -1,0 +1,5 @@
+(* TODO: Less then operation between functions should not be possible because it
+   does not make any sense because of the way comparisons are currently
+   implemented. *)
+
+run (fun x -> x) < (fun x -> 2 * x)

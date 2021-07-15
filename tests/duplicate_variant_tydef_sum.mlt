@@ -1,0 +1,7 @@
+(* Duplicate variants are not allowed in a sum type.
+
+   TODO: This test should fail because there are two constructors with the same
+   name.
+*)
+
+type cow = Horn of int | Horn of string

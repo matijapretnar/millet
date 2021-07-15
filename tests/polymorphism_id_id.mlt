@@ -1,0 +1,3 @@
+let u x = x
+run let v = u u in
+    (v 42, v "foo")

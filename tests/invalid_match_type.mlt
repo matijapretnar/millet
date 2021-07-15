@@ -1,0 +1,6 @@
+type a = A
+type b = B
+
+run let a = [A] in
+  match a with
+    | B -> ()
