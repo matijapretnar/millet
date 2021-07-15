@@ -279,7 +279,7 @@ ident:
   | LPAREN op = prefixop RPAREN
     { op }
 
-binop:
+%inline binop:
   | op = binop_symbol
     { "(" ^ op ^ ")" }
 

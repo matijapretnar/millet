@@ -159,9 +159,9 @@ run take (fun k -> 3 * k + 2) 20
 
 run "test fold_left and fold_right"
 
-run fold_left (fun a y -> (2 * a) + y) 1 [1;2;3;4;5]
+run fold_left (fun a y -> 2 * a + y) 1 [1;2;3;4;5]
 
-run fold_right (fun y a -> (2 * a) + y) [1;2;3;4;5] 1
+run fold_right (fun y a -> 2 * a + y) [1;2;3;4;5] 1
 
 (* Concatenation and check are not supported.
 let test_iter = (fun k -> check ("iter " ^ to_string k)) [1;2;3;4;5];;
@@ -169,9 +169,9 @@ let test_iter = (fun k -> check ("iter " ^ to_string k)) [1;2;3;4;5];;
 
 run "test forall, exists and mem"
 
-run forall (fun k -> (k mod 3) = 2) [1;2;3;4;5]
+run forall (fun k -> k mod 3 = 2) [1;2;3;4;5]
 
-run exists (fun k -> (k mod 3) = 2) [1;2;3;4;5]
+run exists (fun k -> k mod 3 = 2) [1;2;3;4;5]
 
 run mem "foo" ["bar"; "baz"]
 

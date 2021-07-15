@@ -1,0 +1,22 @@
+(* Test associativity. *)
+
+run 8 / 4 / 2
+
+run 12 mod 5 mod 3
+
+(* Test precedence. *)
+
+run 3 * 1 + 2
+
+run 3 * 1 - 2
+
+run 2 + 3 * 1
+
+run 5 / 2 + 1
+
+run 3. ** 2. *. 3.
+
+run 5 mod 3 = 2
+
+let double = fun x -> x * 2
+run double 10 + 2
