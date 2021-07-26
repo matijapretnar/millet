@@ -84,8 +84,7 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  type cow
-  
+  There are two constructors with the same name.
   ======================================================================
   invalid_match_type.mlt
   ======================================================================
@@ -246,7 +245,7 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  return true
+  Comparison between functions is not supported.
   ======================================================================
   lexer.mlt
   ======================================================================
@@ -422,8 +421,7 @@
   val snd : α × β → β
   val return : α → α
   type foo
-  type bar
-  
+  Type foo applied to too few arguments.
   ======================================================================
   nat.mlt
   ======================================================================
@@ -586,7 +584,7 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
-  return 20
+  All the identifiers in a pattern should be unique.
   ======================================================================
   occurs_check.mlt
   ======================================================================
@@ -824,10 +822,16 @@
   val fst : α × β → α
   val snd : α × β → β
   val return : α → α
+  type cow
   return 5
   return (1, 2)
   return (1, 2::3::4::[])
   return (2::3::4::[])
+  return 10
+  return (10, Moo 10)
+  return (42, 42, 42)
+  return (1, 2, 3, (1, 2, 3))
+  return ("foo", "foo", "bar")
   ======================================================================
   polymorphism.mlt
   ======================================================================
@@ -1161,8 +1165,7 @@
   val snd : α × β → β
   val return : α → α
   type cow
-  type bull
-  
+  Constructor Horn is defined twice.
   ======================================================================
   shadow_type.mlt
   ======================================================================
@@ -1243,8 +1246,7 @@
   val return : α → α
   type cow
   type bull
-  type cow
-  
+  Type cow is defined twice.
   ======================================================================
   test_equality.mlt
   ======================================================================
@@ -1545,7 +1547,7 @@
   return "test map"
   return (1::4::9::16::25::[])
   return "test take"
-  return 9
+  return 5
   return (6::9::12::15::18::21::24::27::30::33::36::39::42::45::48::51::54::57::60::63::66::[])
   return "test fold_left and fold_right"
   return 89

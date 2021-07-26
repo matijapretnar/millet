@@ -153,8 +153,6 @@ run map (fun x -> x * x) [1;2;3;4;5]
 
 run "test take"
 
-(* TODO: It should evaluate to 5 instead of 9.
-  It seems that precedence for `*` needs to be fixed.*)
 run 3 * 1 + 2 
 
 run take (fun k -> 3 * k + 2) 20

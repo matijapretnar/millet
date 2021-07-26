@@ -3,13 +3,11 @@ run let (a,b) = (1,2) in (a,b)
 run let x :: y = [1;2;3;4] in (x,y)
 run let _ :: y = [1;2;3;4] in y
 
-(* TODO: Should any of the following be supported?
+type 'a cow = Moo of 'a
 
-run type 'a cow = Moo of 'a
-run let Moo x = Moo 10 in x
+run let (Moo x) = Moo 10 in x
 
-run let Moo x as y = Moo 10 in (x,y)
-run let x as y as z = 42 in (x,y,z)
-run let x,y,z as a = (1,2,3) in (x,y,z,a)
-
-let x as y, z = ("foo", "bar") in (x,y,z) *)
+run let ((Moo x) as y) = Moo 10 in (x,y)
+run let ((x as y) as z) = 42 in (x,y,z)
+run let ((x,y,z) as a) = (1,2,3) in (x,y,z,a)
+run let ((x as y), z) = ("foo", "bar") in (x,y,z)

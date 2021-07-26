@@ -1,5 +1,3 @@
-(* TODO: The second definition of type 'cow' should fail.*)
-
 type cow = Horn of int
 type bull = Tail of string
 type cow = Hoof of bool

@@ -1,6 +1,4 @@
-(* Malformed type application
-
-   TODO: Typechecker should reject the definition of type bar. *)
+(* Malformed type application *)
 
 type 'a foo = 'a * 'a
 type bar = (int, int) foo
