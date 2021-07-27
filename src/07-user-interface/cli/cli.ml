@@ -1,13 +1,7 @@
 open Utils
 module Ast = Language.Ast
 
-module type Backend = sig
-  include Loader.Backend
-
-  val view_run_state : run_state -> unit
-end
-
-module Backend : Backend = InterpreterCli.Backend
+module Backend : CliBackend.S = InterpreterCli.Backend
 
 module Loader = Loader.Loader (Backend)
 

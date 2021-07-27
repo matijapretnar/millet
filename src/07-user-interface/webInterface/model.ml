@@ -1,15 +1,7 @@
 open Utils
 module Ast = Language.Ast
 
-module type Backend = sig
-  include Loader.Backend
-
-  val view_step : step -> step Vdom.vdom
-
-  val view_run_state : run_state -> step option -> 'a Vdom.vdom
-end
-
-module Backend : Backend = InterpreterWebInterface.Backend
+module Backend : WebBackend.S = InterpreterWebInterface.Backend
 
 module Loader = Loader.Loader (Backend)
 
