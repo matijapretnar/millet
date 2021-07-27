@@ -1,12 +1,12 @@
 (executable
- (name webInterface)
- (libraries ocaml-vdom webBackend loader interpreterWebInterface)
+ (name web)
+ (libraries webInterpreter loader)
  (modes js)
  (link_flags -no-check-prims)
  (promote
   (until-clean)
   (into ../../../web)
-  (only webInterface.bc.js)))
+  (only web.bc.js)))
 
 ;; This is an expanded form of the trick used in src/core/dune to generate the module
 ;; Examples_mlt with the examples to include in the web interface.

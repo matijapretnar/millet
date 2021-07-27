@@ -1,6 +1,6 @@
 open Utils
 module Ast = Language.Ast
-module Backend = InterpreterWebInterface
+module Backend = WebInterpreter
 module Loader = Loader.Loader (Backend)
 
 type edit_model = { use_stdlib : bool; unparsed_code : string }

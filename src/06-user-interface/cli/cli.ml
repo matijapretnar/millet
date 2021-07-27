@@ -1,6 +1,6 @@
 open Utils
 module Ast = Language.Ast
-module Backend = InterpreterCli
+module Backend = CliInterpreter
 module Loader = Loader.Loader (Backend)
 
 type config = { filenames : string list; use_stdlib : bool }

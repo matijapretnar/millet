@@ -1,3 +1,3 @@
 (library
- (name interpreterCli)
+ (name cliInterpreter)
  (libraries cliBackend interpreter))

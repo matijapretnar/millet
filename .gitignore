@@ -4,4 +4,4 @@ cli.exe
 .devcontainer
 .vscode
 .merlin
-web/webInterface.bc.js
+web/web.bc.js

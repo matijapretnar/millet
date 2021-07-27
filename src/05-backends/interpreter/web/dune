@@ -1,0 +1,3 @@
+(library
+ (name webInterpreter)
+ (libraries webBackend interpreter))

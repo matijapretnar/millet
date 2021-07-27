@@ -1,6 +1,6 @@
 (library
  (name loader)
- (libraries parser desugarer typechecker backend))
+ (libraries desugarer typechecker backend))
 
 ;; This is a neat trick to include the standard library inside the binary, borrowed from
 ;; (https://gitlab.inria.fr/fpottier/menhir/-/blob/673f63e0f2c4ba7046ffae2504eb9ea29ad6d88c/src/dune)
