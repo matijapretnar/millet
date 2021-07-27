@@ -1,9 +1,6 @@
 include Interpreter
 open Vdom
 
-let button txt msg =
-  input [] ~a:[ onclick (fun _ -> msg); type_button; value txt ]
-
 let view_computation_redex = function
   | Interpreter.Match -> "match"
   | Interpreter.ApplyFun -> "applyFun"
