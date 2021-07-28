@@ -231,8 +231,6 @@ let infer state e =
   t'
 
 let add_external_function x ty_sch state =
-  Format.printf "@[val %t : %t@]@." (Ast.Variable.print x)
-    (Ast.print_ty_scheme ty_sch);
   { state with variables = Ast.VariableMap.add x ty_sch state.variables }
 
 let add_top_definition state x expr =
@@ -246,7 +244,6 @@ let add_top_definition state x expr =
 let add_type_definitions state ty_defs =
   List.fold_left
     (fun state (params, ty_name, ty_def) ->
-      Format.printf "@[type %t@]@." (Ast.TyName.print ty_name);
       {
         state with
         type_definitions =
