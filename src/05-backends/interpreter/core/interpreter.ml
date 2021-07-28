@@ -280,26 +280,3 @@ let rec steps = function
   | Returning (_, load_state) -> steps (Running load_state)
 
 let step _ step = step.next_state ()
-
-(* let _ = run state comp in
-       state
-
-   let rec run state comp =
-     match step_computation state comp with
-     | [] ->
-         Format.printf "The computation has terminated in the configuration:@.%t@."
-           (Ast.print_computation comp)
-     | steps ->
-         let i = Random.int (List.length steps) in
-         let _, comp' = List.nth steps i in
-         run state comp'
-*)
-
-(* let rec run (state : Interpreter.state) proc =
-  match Interpreter.top_steps state proc with
-  | [] -> proc
-  | steps ->
-      let i = Random.int (List.length steps) in
-      let _, top_step = List.nth steps i in
-      let proc' = make_top_step top_step in
-      run state proc' *)
