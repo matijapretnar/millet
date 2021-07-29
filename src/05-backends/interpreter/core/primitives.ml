@@ -53,9 +53,24 @@ let float_to_float f =
 let float_float_to_float f =
   float_float_to (fun n1 n2 -> Ast.Return (Ast.Const (Const.Float (f n1 n2))))
 
+let rec comparable_expression = function
+  | Ast.Var _ -> true
+  | Const _ -> true
+  | Annotated (e, _) -> comparable_expression e
+  | Tuple es -> List.for_all comparable_expression es
+  | Variant (_, e) -> Option.fold ~none:true ~some:comparable_expression e
+  | Lambda _ -> false
+  | RecLambda _ -> false
+
 let comparison f =
-  binary_function (fun n1 n2 ->
-      Ast.Return (Ast.Const (Const.Boolean (f n1 n2))))
+  binary_function (fun e1 e2 ->
+      if not (comparable_expression e1) then
+        Error.runtime "Incomparable expression %t"
+          (Ast.print_expression ~max_level:0 e1)
+      else if not (comparable_expression e2) then
+        Error.runtime "Incomparable expression %t"
+          (Ast.print_expression ~max_level:0 e2)
+      else Ast.Return (Ast.Const (Const.Boolean (f e1 e2))))
 
 let primitive_function = function
   | Primitives.CompareEq -> comparison ( = )
