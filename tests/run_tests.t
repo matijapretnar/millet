@@ -9,7 +9,8 @@
   ======================================================================
   duplicate_variant_tydef_sum.mlt
   ======================================================================
-  There are two constructors with the same name.
+  Syntax error (file "duplicate_variant_tydef_sum.mlt", line 3, char 1):
+  Label Horn defined multiple times.
   ======================================================================
   invalid_match_type.mlt
   ======================================================================
@@ -92,11 +93,13 @@
   ======================================================================
   shadow_label.mlt
   ======================================================================
-  Constructor Horn is defined twice.
+  Syntax error (file "shadow_label.mlt", line 2, char 1):
+  Label Horn defined multiple times.
   ======================================================================
   shadow_type.mlt
   ======================================================================
-  Type cow is defined twice.
+  Syntax error (file "shadow_type.mlt", line 3, char 1):
+  Type cow defined multiple times.
   ======================================================================
   test_equality.mlt
   ======================================================================

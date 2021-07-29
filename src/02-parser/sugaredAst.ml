@@ -76,7 +76,9 @@ type ty_def =
       (** [Label1 of ty1 | Label2 of ty2 | ... | Labeln of tyn | Label' | Label''] *)
   | TyInline of ty  (** [ty] *)
 
-type command =
+type command = plain_command annotated
+
+and plain_command =
   | TyDef of (ty_param list * ty_name * ty_def) list
       (** [type ('a...1) t1 = def1 and ... and ('a...n) tn = defn] *)
   | TopLet of variable * term  (** [let x = t] *)

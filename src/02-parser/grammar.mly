@@ -55,7 +55,8 @@ commands:
      { cmd :: cmds }
 
 (* Things that can be defined on toplevel. *)
-command:
+command: mark_position(plain_command) { $1 }
+plain_command:
   | TYPE defs = separated_nonempty_list(AND, ty_def)
     { TyDef defs }
   | LET x = ident t = lambdas0(EQUAL)

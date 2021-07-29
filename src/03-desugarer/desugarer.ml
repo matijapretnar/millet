@@ -245,12 +245,19 @@ let desugar_pure_expression state term =
   | [] -> expr
   | _ -> Error.syntax ~loc:term.at "Only pure expressions are allowed"
 
-let add_label state label label' =
-  let labels' = StringMap.add label label' state.labels in
+let add_unique ~loc kind str symb string_map =
+  StringMap.update str
+    (function
+      | None -> Some symb
+      | Some _ -> Error.syntax ~loc "%s %s defined multiple times." kind str)
+    string_map
+
+let add_label ~loc state label label' =
+  let labels' = add_unique ~loc "Label" label label' state.labels in
   { state with labels = labels' }
 
-let add_fresh_ty_names state vars =
-  let aux ty_names (x, x') = StringMap.add x x' ty_names in
+let add_fresh_ty_names ~loc state vars =
+  let aux ty_names (x, x') = add_unique ~loc "Type" x x' ty_names in
   let ty_names' = List.fold_left aux state.ty_names vars in
   { state with ty_names = ty_names' }
 
@@ -259,30 +266,31 @@ let add_fresh_ty_params state vars =
   let ty_params' = List.fold_left aux state.ty_params vars in
   { state with ty_params = ty_params' }
 
-let desugar_ty_def state = function
+let desugar_ty_def ~loc state = function
   | Sugared.TyInline ty -> (state, Untyped.TyInline (desugar_ty state ty))
   | Sugared.TySum variants ->
       let aux state (label, ty) =
         let label' = Untyped.Label.fresh label in
         let ty' = Option.map (desugar_ty state) ty in
-        let state' = add_label state label label' in
+        let state' = add_label ~loc state label label' in
         (state', (label', ty'))
       in
       let state', variants' = List.fold_map aux state variants in
       (state', Untyped.TySum variants')
 
-let desugar_command state = function
+let desugar_command state { Sugared.it = cmd; at = loc } =
+  match cmd with
   | Sugared.TyDef defs ->
       let def_name (_, ty_name, _) =
         let ty_name' = Untyped.TyName.fresh ty_name in
         (ty_name, ty_name')
       in
       let new_names = List.map def_name defs in
-      let state' = add_fresh_ty_names state new_names in
+      let state' = add_fresh_ty_names ~loc state new_names in
       let aux (params, _, ty_def) (_, ty_name') (state', defs) =
         let params' = List.map (fun a -> (a, Untyped.TyParam.fresh a)) params in
         let state'' = add_fresh_ty_params state' params' in
-        let state''', ty_def' = desugar_ty_def state'' ty_def in
+        let state''', ty_def' = desugar_ty_def ~loc state'' ty_def in
         (state''', (List.map snd params', ty_name', ty_def') :: defs)
       in
       let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
