@@ -51,7 +51,8 @@
   ======================================================================
   non_linear_pattern.mlt
   ======================================================================
-  All the identifiers in a pattern should be unique.
+  Syntax error (file "non_linear_pattern.mlt", line 3, char 9):
+  Variable a defined multiple times.
   ======================================================================
   occurs_check.mlt
   ======================================================================

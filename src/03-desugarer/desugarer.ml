@@ -6,6 +6,13 @@ module Untyped = Language.Ast
 module Const = Language.Const
 module StringMap = Map.Make (String)
 
+let add_unique ~loc kind str symb string_map =
+  StringMap.update str
+    (function
+      | None -> Some symb
+      | Some _ -> Error.syntax ~loc "%s %s defined multiple times." kind str)
+    string_map
+
 type state = {
   ty_names : Untyped.ty_name StringMap.t;
   ty_params : Untyped.ty_param StringMap.t;
@@ -65,42 +72,42 @@ and desugar_plain_ty ~loc state = function
       Untyped.TyTuple tys'
   | Sugared.TyConst c -> Untyped.TyConst c
 
-let rec desugar_pattern state { Sugared.it = pat; at = loc } =
-  let vars, pat' = desugar_plain_pattern ~loc state pat in
+let rec desugar_pattern state vars { Sugared.it = pat; at = loc } =
+  let vars, pat' = desugar_plain_pattern ~loc state vars pat in
   (vars, pat')
 
-and desugar_plain_pattern ~loc state = function
+and desugar_plain_pattern ~loc state vars = function
   | Sugared.PVar x ->
       let x' = Untyped.Variable.fresh x in
-      ([ (x, x') ], Untyped.PVar x')
+      (StringMap.singleton x x', Untyped.PVar x')
   | Sugared.PAnnotated (pat, ty) ->
-      let vars, pat' = desugar_pattern state pat
+      let vars, pat' = desugar_pattern state vars pat
       and ty' = desugar_ty state ty in
       (vars, Untyped.PAnnotated (pat', ty'))
   | Sugared.PAs (pat, x) ->
-      let vars, pat' = desugar_pattern state pat in
+      let vars, pat' = desugar_pattern state vars pat in
       let x' = Untyped.Variable.fresh x in
-      ((x, x') :: vars, Untyped.PAs (pat', x'))
+      (add_unique ~loc "Variable" x x' vars, Untyped.PAs (pat', x'))
   | Sugared.PTuple ps ->
       let aux p (vars, ps') =
-        let vars', p' = desugar_pattern state p in
-        (vars' @ vars, p' :: ps')
+        let vars', p' = desugar_pattern state vars p in
+        (StringMap.fold (add_unique ~loc "Variable") vars' vars, p' :: ps')
       in
-      let vars, ps' = List.fold_right aux ps ([], []) in
+      let vars, ps' = List.fold_right aux ps (StringMap.empty, []) in
       (vars, Untyped.PTuple ps')
   | Sugared.PVariant (lbl, None) ->
       let lbl' = lookup_label ~loc state lbl in
-      ([], Untyped.PVariant (lbl', None))
+      (StringMap.empty, Untyped.PVariant (lbl', None))
   | Sugared.PVariant (lbl, Some pat) ->
       let lbl' = lookup_label ~loc state lbl in
-      let vars, pat' = desugar_pattern state pat in
+      let vars, pat' = desugar_pattern state vars pat in
       (vars, Untyped.PVariant (lbl', Some pat'))
-  | Sugared.PConst c -> ([], Untyped.PConst c)
-  | Sugared.PNonbinding -> ([], Untyped.PNonbinding)
+  | Sugared.PConst c -> (StringMap.empty, Untyped.PConst c)
+  | Sugared.PNonbinding -> (StringMap.empty, Untyped.PNonbinding)
 
 let add_fresh_variables state vars =
-  let aux variables (x, x') = StringMap.add x x' variables in
-  let variables' = List.fold_left aux state.variables vars in
+  let aux x x' variables = StringMap.add x x' variables in
+  let variables' = StringMap.fold aux vars state.variables in
   { state with variables = variables' }
 
 let rec desugar_expression state { Sugared.it = term; at = loc } =
@@ -194,13 +201,13 @@ and desugar_plain_computation ~loc state =
       (binds, Untyped.Return expr)
 
 and desugar_abstraction state (pat, term) =
-  let vars, pat' = desugar_pattern state pat in
+  let vars, pat' = desugar_pattern state StringMap.empty pat in
   let state' = add_fresh_variables state vars in
   let comp = desugar_computation state' term in
   (pat', comp)
 
 and desugar_guarded_abstraction state (pat, term1, term2) =
-  let vars, pat' = desugar_pattern state pat in
+  let vars, pat' = desugar_pattern state StringMap.empty pat in
   let state' = add_fresh_variables state vars in
   let comp1 = desugar_computation state' term1
   and comp2 = desugar_computation state' term2 in
@@ -216,7 +223,7 @@ and desugar_promise_abstraction ~loc state abs2 =
 
 and desugar_let_rec_def state (f, { it = exp; at = loc }) =
   let f' = Untyped.Variable.fresh f in
-  let state' = add_fresh_variables state [ (f, f') ] in
+  let state' = add_fresh_variables state (StringMap.singleton f f') in
   let abs' =
     match exp with
     | Sugared.Lambda a -> desugar_abstraction state' a
@@ -244,13 +251,6 @@ let desugar_pure_expression state term =
   match binds with
   | [] -> expr
   | _ -> Error.syntax ~loc:term.at "Only pure expressions are allowed"
-
-let add_unique ~loc kind str symb string_map =
-  StringMap.update str
-    (function
-      | None -> Some symb
-      | Some _ -> Error.syntax ~loc "%s %s defined multiple times." kind str)
-    string_map
 
 let add_label ~loc state label label' =
   let labels' = add_unique ~loc "Label" label label' state.labels in
@@ -297,7 +297,7 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
       (state'', Untyped.TyDef defs')
   | Sugared.TopLet (x, term) ->
       let x' = Untyped.Variable.fresh x in
-      let state' = add_fresh_variables state [ (x, x') ] in
+      let state' = add_fresh_variables state (StringMap.singleton x x') in
       let expr = desugar_pure_expression state' term in
       (state', Untyped.TopLet (x', expr))
   | Sugared.TopDo term ->
@@ -309,4 +309,4 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in
-  add_fresh_variables state [ (str, x) ]
+  add_fresh_variables state (StringMap.singleton str x)
