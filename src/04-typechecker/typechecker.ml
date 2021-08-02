@@ -39,6 +39,28 @@ let initial_state =
             ] ) );
   }
 
+let rec check_ty state = function
+  | Ast.TyConst _ -> ()
+  | TyApply (ty_name, tys) ->
+      let params, _ = Ast.TyNameMap.find ty_name state.type_definitions in
+      let expected, actual = (List.length params, List.length tys) in
+      if expected <> actual then
+        Error.typing "Type %t expects %d arguments but got %d."
+          (Ast.TyName.print ty_name) expected actual
+      else List.iter (check_ty state) tys
+  | TyParam _ -> ()
+  | TyArrow (ty1, ty2) ->
+      check_ty state ty1;
+      check_ty state ty2
+  | TyTuple tys -> List.iter (check_ty state) tys
+
+let check_variant state (_label, arg_ty) =
+  match arg_ty with None -> () | Some ty -> check_ty state ty
+
+let check_ty_def state = function
+  | Ast.TySum defs -> List.iter (check_variant state) defs
+  | Ast.TyInline ty -> check_ty state ty
+
 let fresh_ty () =
   let a = Ast.TyParam.fresh "ty" in
   Ast.TyParam a
@@ -242,14 +264,18 @@ let add_top_definition state x expr =
   add_external_function x ty_sch state
 
 let add_type_definitions state ty_defs =
-  List.fold_left
-    (fun state (params, ty_name, ty_def) ->
-      {
-        state with
-        type_definitions =
-          Ast.TyNameMap.add ty_name (params, ty_def) state.type_definitions;
-      })
-    state ty_defs
+  let state' =
+    List.fold_left
+      (fun state (params, ty_name, ty_def) ->
+        {
+          state with
+          type_definitions =
+            Ast.TyNameMap.add ty_name (params, ty_def) state.type_definitions;
+        })
+      state ty_defs
+  in
+  List.iter (fun (_, _, ty_def) -> check_ty_def state' ty_def) ty_defs;
+  state'
 
 let load_primitive state x prim =
   let ty_sch = Primitives.primitive_type_scheme prim in
