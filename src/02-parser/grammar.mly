@@ -46,7 +46,7 @@
 
 (* Toplevel syntax *)
 
-(* If you're going to "optimize" this, please Location.of_lexeme sure we don't require;; at the
+(* If you're going to "optimize" this, please make sure we don't require ;; at the
    end of the file. *)
 commands:
   | EOF

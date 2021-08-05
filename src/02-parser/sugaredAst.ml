@@ -58,12 +58,12 @@ and plain_term =
   | Annotated of term * ty
   | Tuple of term list  (** [(t1, t2, ..., tn)] *)
   | Variant of label * term option  (** [Label] or [Label t] *)
-  | Lambda of abstraction  (** [fun p1 p2 ... pn |-> t] *)
-  | Function of abstraction list  (** [function p1 |-> t1 | ... | pn |-> tn] *)
+  | Lambda of abstraction  (** [fun p1 p2 ... pn -> t] *)
+  | Function of abstraction list  (** [function p1 -> t1 | ... | pn -> tn] *)
   | Let of pattern * term * term  (** [let p = t1 in t2] *)
   | LetRec of variable * term * term  (** [let rec f = t1 in t2] *)
   | Match of term * abstraction list
-      (** [match t with p1 |-> t1 | ... | pn |-> tn] *)
+      (** [match t with p1 -> t1 | ... | pn -> tn] *)
   | Conditional of term * term * term  (** [if t then t1 else t2] *)
   | Apply of term * term  (** [t1 t2] *)
 
