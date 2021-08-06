@@ -56,4 +56,4 @@ to pull latest changes and merge them into your main development.
 
 ## Why the name Millet?
 
-Millet uses fine-grain call-by-value core calculus, and there is no finer grain than millet. Plus, the `.mlt` extension fits nicely into the ML family.
+Millet uses fine-grain call-by-value core calculus, and there is no finer grain than [millet](https://en.wikipedia.org/wiki/Millet). Plus, the `.mlt` extension fits nicely into the ML family.
