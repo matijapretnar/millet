@@ -179,7 +179,7 @@ let view_steps (run_model : Model.run_model) steps =
           [
             Vdom.map
               (fun step -> Model.RunMsg (Model.MakeStep step))
-              (Model.Backend.view_step step);
+              (Model.Backend.view_step_label step.label);
           ];
       ]
   and view_random_steps steps =
@@ -231,7 +231,10 @@ let run_view (run_model : Model.run_model) =
     Option.map (List.nth steps) run_model.selected_step_index
   in
   view_contents
-    [ Model.Backend.view_run_state run_model.run_state selected_step ]
+    [
+      Model.Backend.view_run_state run_model.run_state
+        (Option.map (fun step -> step.WebInterpreter.label) selected_step);
+    ]
     [ view_steps run_model steps ]
 
 let view_navbar =

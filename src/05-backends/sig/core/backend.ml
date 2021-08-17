@@ -19,11 +19,11 @@ module type S = sig
 
   type run_state
 
-  type step
+  type step_label
+
+  type step = { label : step_label; next_state : unit -> run_state }
 
   val run : load_state -> run_state
 
   val steps : run_state -> step list
-
-  val step : run_state -> step -> run_state
 end

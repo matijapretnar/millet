@@ -249,9 +249,9 @@ let load_top_do load_state comp =
 
 type run_state = load_state
 
-type reduction = ComputationReduction of computation_reduction | Return
+type step_label = ComputationReduction of computation_reduction | Return
 
-type step = { reduction : reduction; next_state : unit -> run_state }
+type step = { label : step_label; next_state : unit -> run_state }
 
 let run load_state = load_state
 
@@ -260,7 +260,7 @@ let steps = function
   | { computations = Ast.Return _ :: comps; environment } ->
       [
         {
-          reduction = Return;
+          label = Return;
           next_state = (fun () -> { computations = comps; environment });
         };
       ]
@@ -268,10 +268,8 @@ let steps = function
       List.map
         (fun (red, comp') ->
           {
-            reduction = ComputationReduction red;
+            label = ComputationReduction red;
             next_state =
               (fun () -> { computations = comp' () :: comps; environment });
           })
         (step_computation environment comp)
-
-let step _ step = step.next_state ()

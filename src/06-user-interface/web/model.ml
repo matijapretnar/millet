@@ -36,10 +36,10 @@ type run_msg =
   | ChangeRandomStepSize of int
   | Back
 
-let run_model_make_step run_model step =
+let run_model_make_step run_model (step : Backend.step) =
   {
     run_model with
-    run_state = Backend.step run_model.run_state step;
+    run_state = step.next_state ();
     history = run_model.run_state :: run_model.history;
   }
 

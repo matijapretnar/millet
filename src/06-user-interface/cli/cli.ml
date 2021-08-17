@@ -27,7 +27,7 @@ let rec run (state : Backend.run_state) =
   | steps ->
       let i = Random.int (List.length steps) in
       let step = List.nth steps i in
-      let state' = Backend.step state step in
+      let state' = step.next_state () in
       run state'
 
 let main () =
