@@ -247,36 +247,31 @@ let load_top_let load_state x expr =
 let load_top_do load_state comp =
   { load_state with computations = load_state.computations @ [ comp ] }
 
-type run_state =
-  | Running of load_state
-  | Returning of Ast.expression * load_state
+type run_state = load_state
 
-type reduction = ComputationReduction of computation_reduction | ReturnValue
+type reduction = ComputationReduction of computation_reduction | Return
 
 type step = { reduction : reduction; next_state : unit -> run_state }
 
-let run load_state = Running load_state
+let run load_state = load_state
 
-let rec steps = function
-  | Running { computations = []; _ } -> []
-  | Running { computations = Ast.Return exp :: comps; environment } ->
+let steps = function
+  | { computations = []; _ } -> []
+  | { computations = Ast.Return _ :: comps; environment } ->
       [
         {
-          reduction = ReturnValue;
-          next_state =
-            (fun () -> Returning (exp, { computations = comps; environment }));
+          reduction = Return;
+          next_state = (fun () -> { computations = comps; environment });
         };
       ]
-  | Running { computations = comp :: comps; environment } ->
+  | { computations = comp :: comps; environment } ->
       List.map
         (fun (red, comp') ->
           {
             reduction = ComputationReduction red;
             next_state =
-              (fun () ->
-                Running { computations = comp' () :: comps; environment });
+              (fun () -> { computations = comp' () :: comps; environment });
           })
         (step_computation environment comp)
-  | Returning (_, load_state) -> steps (Running load_state)
 
 let step _ step = step.next_state ()

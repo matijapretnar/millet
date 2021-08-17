@@ -14,15 +14,15 @@ let view_step step =
   match step.reduction with
   | Interpreter.ComputationReduction reduction ->
       text (view_computation_reduction reduction)
-  | Interpreter.ReturnValue -> text "return"
+  | Interpreter.Return -> text "return"
 
 let view_run_state (run_state : run_state) step =
   match run_state with
-  | Running { computations = comp :: _; _ } ->
+  | { computations = comp :: _; _ } ->
       let reduction =
         match step with
         | Some { reduction = ComputationReduction red; _ } -> Some red
-        | Some { reduction = Interpreter.ReturnValue; _ } -> None
+        | Some { reduction = Interpreter.Return; _ } -> None
         | None -> None
       in
 
@@ -30,6 +30,5 @@ let view_run_state (run_state : run_state) step =
         RedexSelectorTM.view_computation_with_redexes reduction comp
       in
       div ~a:[ class_ "box" ] [ elt "pre" computation_tree ]
-  | Running { computations = []; _ } ->
+  | { computations = []; _ } ->
       div ~a:[ class_ "box" ] [ elt "pre" [ text "done" ] ]
-  | Returning (_, _) -> div ~a:[ class_ "box" ] [ elt "pre" [ text "return" ] ]
