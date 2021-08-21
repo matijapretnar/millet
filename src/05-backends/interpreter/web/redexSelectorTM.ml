@@ -44,7 +44,7 @@ let split_string sep str =
     subs := String.sub str !sub_start (str_len - !sub_start) :: !subs;
   List.rev !subs
 
-let view_computation_with_redexes red comp =
+let view_computation_with_redexes highlight_redex red comp =
   (match red with
   | None -> Ast.print_computation comp Format.str_formatter
   | Some red -> print_computation_reduction red comp Format.str_formatter);
@@ -53,7 +53,10 @@ let view_computation_with_redexes red comp =
   | [ pre; redex; post ] ->
       [
         Vdom.text pre;
-        Vdom.elt "strong" ~a:[ Vdom.class_ "has-text-info" ] [ Vdom.text redex ];
+        Vdom.elt
+          (if highlight_redex then "strong" else "span")
+          ~a:[ Vdom.class_ "has-text-info" ]
+          [ Vdom.text redex ];
         Vdom.text post;
       ]
   | _ -> assert false
