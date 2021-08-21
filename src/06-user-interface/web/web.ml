@@ -1,3 +1,6 @@
+module Model = Model.Model (WebInterpreter)
+module View = View.View (WebInterpreter)
+
 let app =
   Vdom.simple_app ~init:Model.init ~view:View.view ~update:Model.update ()
 
