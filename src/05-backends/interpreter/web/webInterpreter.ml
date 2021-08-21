@@ -1,12 +1,31 @@
 include Interpreter
 open Vdom
 
-type msg = unit
-type model = unit
+type msg = HighlightRedex of bool
+type model = { highlight_redex : bool }
 
-let init = ()
-let update () () = ()
-let view_model () = Vdom.text ""
+let init = { highlight_redex = true }
+let update _model = function HighlightRedex show -> { highlight_redex = show }
+
+let view_model model =
+  div
+    ~a:[ class_ "panel" ]
+    [
+      elt "p" ~a:[ class_ "panel-heading" ] [ text "Options" ];
+      elt "label"
+        ~a:[ class_ "panel-block" ]
+        [
+          input
+            ~a:
+              [
+                type_ "checkbox";
+                onchange_checked (fun show -> HighlightRedex show);
+                bool_prop "checked" model.highlight_redex;
+              ]
+            [];
+          text "Highlight redex";
+        ];
+    ]
 
 let view_computation_redex = function
   | Interpreter.Match -> "match"
@@ -22,7 +41,7 @@ let view_step_label = function
       text (view_computation_reduction reduction)
   | Interpreter.Return -> text "return"
 
-let view_run_state _model (run_state : run_state) step_label =
+let view_run_state model (run_state : run_state) step_label =
   match run_state with
   | { computations = comp :: _; _ } ->
       let reduction =
@@ -33,7 +52,8 @@ let view_run_state _model (run_state : run_state) step_label =
       in
 
       let computation_tree =
-        RedexSelectorTM.view_computation_with_redexes reduction comp
+        RedexSelectorTM.view_computation_with_redexes model.highlight_redex
+          reduction comp
       in
       div ~a:[ class_ "box" ] [ elt "pre" computation_tree ]
   | { computations = []; _ } ->
