@@ -77,7 +77,8 @@ module Model (Backend : WebBackend.S) = struct
     | BackendMsg msg ->
         {
           run_model with
-          backend_model = Backend.update run_model.backend_model msg;
+          backend_model = Backend.update_model run_model.backend_model msg;
+          run_state = Backend.update_run_state run_model.run_state msg;
         }
 
   type model = {

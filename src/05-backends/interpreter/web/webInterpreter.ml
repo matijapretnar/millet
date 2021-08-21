@@ -5,7 +5,11 @@ type msg = HighlightRedex of bool
 type model = { highlight_redex : bool }
 
 let init = { highlight_redex = true }
-let update _model = function HighlightRedex show -> { highlight_redex = show }
+
+let update_model _model = function
+  | HighlightRedex show -> { highlight_redex = show }
+
+let update_run_state run_state _msg = run_state
 
 let view_model model =
   div
