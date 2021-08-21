@@ -1,6 +1,13 @@
 include Interpreter
 open Vdom
 
+type msg = unit
+type model = unit
+
+let init = ()
+let update () () = ()
+let view_model () = Vdom.text ""
+
 let view_computation_redex = function
   | Interpreter.Match -> "match"
   | Interpreter.ApplyFun -> "applyFun"
