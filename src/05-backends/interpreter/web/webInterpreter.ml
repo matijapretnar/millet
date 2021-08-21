@@ -22,7 +22,7 @@ let view_step_label = function
       text (view_computation_reduction reduction)
   | Interpreter.Return -> text "return"
 
-let view_run_state (run_state : run_state) step_label =
+let view_run_state _model (run_state : run_state) step_label =
   match run_state with
   | { computations = comp :: _; _ } ->
       let reduction =
