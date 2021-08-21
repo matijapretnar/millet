@@ -244,7 +244,7 @@ module View (Backend : WebBackend.S) = struct
     in
     view_contents
       [
-        Backend.view_run_state run_model.run_state
+        Backend.view_run_state run_model.backend_model run_model.run_state
           (Option.map (fun step -> step.Backend.label) selected_step);
       ]
       ([ view_steps run_model steps ]
