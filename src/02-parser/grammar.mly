@@ -1,20 +1,24 @@
 %{
   open SugaredAst
   open Utils
+  open Utils.LongName
 %}
 
 %token LPAREN RPAREN LBRACK RBRACK
 %token COLON COMMA SEMI EQUAL CONS
 %token BEGIN END
-%token <string> LNAME
+%token <Utils.LongName.LongName.t> LNAME
+%token <Utils.LongName.LongName.t> LONGLNAME
 %token UNDERSCORE AS
 %token <int> INT
 %token <string> STRING
 %token <bool> BOOL
 %token <float> FLOAT
-%token <SugaredAst.label> UNAME
+%token <Utils.LongName.LongName.t> UNAME
+%token <Utils.LongName.LongName.t> LONGUNAME
 %token <SugaredAst.ty_param> PARAM
-%token TYPE ARROW OF
+%token TYPE ARROW OF 
+%token MODULE STRUCT
 %token MATCH WITH FUNCTION
 %token RUN LET REC AND IN
 %token FUN BAR BARBAR
@@ -59,6 +63,8 @@ command: mark_position(plain_command) { $1 }
 plain_command:
   | TYPE defs = separated_nonempty_list(AND, ty_def)
     { TyDef defs }
+  | MODULE name = UNAME EQUAL STRUCT defs = mod_defs(END)
+    { Module (name, defs) }
   | LET x = ident t = lambdas0(EQUAL)
     { TopLet (x, t) }
   | LET REC def = let_rec_def
@@ -69,6 +75,23 @@ plain_command:
 payload:
   | trm = term EOF
     { trm }
+
+mod_defs(END):
+  | END
+     { [] }
+  | def = mod_def defs = mod_defs(END)
+     { def :: defs }
+
+(* Things that can be defined in a module. *)
+mod_def:
+  | TYPE defs = separated_nonempty_list(AND, ty_def)
+    { MTyDef defs }
+  | LET x = ident t = lambdas0(EQUAL)
+    { MTopLet (x, t) }
+  | LET REC def = let_rec_def
+    { let (f, t) = def in MTopLetRec (f, t) }
+  | MODULE name = UNAME EQUAL STRUCT defs = mod_defs(END)
+    { Module (name, defs) }
 
 (* Main syntax tree *)
 
@@ -104,7 +127,7 @@ plain_binop_term:
     { Apply ({it= Apply ({it= Var op; at=Location.of_lexeme $startpos}, t1); at=Location.of_lexeme $startpos}, t2) }
   | t1 = binop_term CONS t2 = binop_term
     { let tuple = {it= Tuple [t1; t2]; at= Location.of_lexeme $startpos} in
-      Variant (cons_label, Some tuple) }
+      Variant (LongName.from_id cons_label, Some tuple) }
   | t = plain_uminus_term
     { t }
 
@@ -112,10 +135,10 @@ uminus_term: mark_position(plain_uminus_term) { $1 }
 plain_uminus_term:
   | MINUS t = uminus_term
     { let op_loc = Location.of_lexeme $startpos($1) in
-      Apply ({it= Var "(~-)"; at= op_loc}, t) }
+      Apply ({it= Var (LongName.from_id "(~-)"); at= op_loc}, t) }
   | MINUSDOT t = uminus_term
     { let op_loc = Location.of_lexeme $startpos($1) in
-      Apply ({it= Var "(~-.)"; at= op_loc}, t) }
+      Apply ({it= Var (LongName.from_id "(~-.)"); at= op_loc}, t) }
   | t = plain_app_term
     { t }
 
@@ -124,7 +147,7 @@ plain_app_term:
     {
       match t.it, ts with
       | Variant (lbl, None), [t] -> Variant (lbl, Some t)
-      | Variant (lbl, _), _ -> Error.syntax ~loc:(t.at) "Label %s applied to too many argument" lbl
+      | Variant (lbl, _), _ -> Error.syntax ~loc:(t.at) "Label %s applied to too many argument" (LongName.to_string lbl)
       | _, _ ->
         let apply t1 t2 = {it= Apply(t1, t2); at= t1.at} in
         (List.fold_left apply t ts).it
@@ -137,26 +160,26 @@ plain_prefix_term:
   | op = prefixop t = simple_term
     {
       let op_loc = Location.of_lexeme $startpos(op) in
-      Apply ({it= Var op; at= op_loc}, t)
+      Apply ({it= Var (LongName.from_id op); at= op_loc}, t)
     }
   | t = plain_simple_term
     { t }
 
 simple_term: mark_position(plain_simple_term) { $1 }
 plain_simple_term:
-  | x = ident
+  | x = refident
     { Var x }
-  | lbl = UNAME
+  | lbl = longuname
     { Variant (lbl, None) }
   | cst = const
     { Const cst }
   | LBRACK ts = separated_list(SEMI, comma_term) RBRACK
     {
-      let nil = {it= Variant (nil_label, None); at= Location.of_lexeme $endpos} in
+      let nil = {it= Variant (LongName.from_id nil_label, None); at= Location.of_lexeme $endpos} in
       let cons t ts =
         let loc = t.at in
         let tuple = {it= Tuple [t; ts];at= loc} in
-        {it= Variant (cons_label, Some tuple); at= loc}
+        {it= Variant (LongName.from_id cons_label, Some tuple); at= loc}
       in
       (List.fold_right cons ts nil).it
     }
@@ -227,7 +250,7 @@ plain_cons_pattern:
     { p.it }
   | p1 = variant_pattern CONS p2 = cons_pattern
     { let ptuple = {it= PTuple [p1; p2]; at= Location.of_lexeme $startpos} in
-      PVariant (cons_label, Some ptuple) }
+      PVariant (LongName.from_id cons_label, Some ptuple) }
 
 variant_pattern: mark_position(plain_variant_pattern) { $1 }
 plain_variant_pattern:
@@ -240,7 +263,7 @@ simple_pattern: mark_position(plain_simple_pattern) { $1 }
 plain_simple_pattern:
   | x = ident
     { PVar x }
-  | lbl = UNAME
+  | lbl = longuname
     { PVariant (lbl, None) }
   | UNDERSCORE
     { PNonbinding }
@@ -248,11 +271,11 @@ plain_simple_pattern:
     { PConst cst }
   | LBRACK ts = separated_list(SEMI, pattern) RBRACK
     {
-      let nil = {it= PVariant (nil_label, None);at= Location.of_lexeme $endpos} in
+      let nil = {it= PVariant (LongName.from_id nil_label, None);at= Location.of_lexeme $endpos} in
       let cons t ts =
         let loc = t.at in
         let tuple = {it= PTuple [t; ts]; at= loc} in
-        {it= PVariant (cons_label, Some tuple); at= loc}
+        {it= PVariant (LongName.from_id cons_label, Some tuple); at= loc}
       in
       (List.fold_right cons ts nil).it
     }
@@ -267,6 +290,18 @@ lname:
   | x = LNAME
     { x }
 
+longlname:
+  | x = lname
+    { x }
+  | p = LONGLNAME
+    { p }
+
+longuname:
+  | x = UNAME
+    { x }
+  | p = LONGUNAME
+    { p }
+
 tyname:
   | t = lname
     { t }
@@ -277,11 +312,17 @@ ident:
   | LPAREN op = binop RPAREN
     { op }
   | LPAREN op = prefixop RPAREN
-    { op }
+    { LongName.from_id op }
+
+refident:
+  | x = ident
+    { x }
+  | x = longlname
+    { x }
 
 %inline binop:
   | op = binop_symbol
-    { "(" ^ op ^ ")" }
+    { LongName.from_id ("(" ^ op ^ ")") }
 
 %inline binop_symbol:
   | OR

@@ -1,53 +1,67 @@
 (** Desugaring of syntax into the core language. *)
 
 open Utils
+open Utils.LongName
 module Sugared = Parser.SugaredAst
 module Untyped = Language.Ast
 module Const = Language.Const
-module StringMap = Map.Make (String)
+module NameMap = Map.Make (LongName)
 
-let add_unique ~loc kind str symb string_map =
-  StringMap.update str
+let add_unique ~loc kind p symb string_map =
+  NameMap.update p
     (function
       | None -> Some symb
-      | Some _ -> Error.syntax ~loc "%s %s defined multiple times." kind str)
+      | Some _ ->
+          Error.syntax ~loc "%s %s defined multiple times." kind
+            (LongName.to_string p))
     string_map
 
 type state = {
-  ty_names : Untyped.ty_name StringMap.t;
-  ty_params : Untyped.ty_param StringMap.t;
-  variables : Untyped.variable StringMap.t;
-  labels : Untyped.label StringMap.t;
+  prefix : string list;
+  ty_names : Untyped.ty_name NameMap.t;
+  ty_params : Untyped.ty_param NameMap.t;
+  variables : Untyped.variable NameMap.t;
+  labels : Untyped.label NameMap.t;
 }
 
 let initial_state =
   {
+    prefix = [];
     ty_names =
-      StringMap.empty
-      |> StringMap.add Sugared.bool_ty_name Untyped.bool_ty_name
-      |> StringMap.add Sugared.int_ty_name Untyped.int_ty_name
-      |> StringMap.add Sugared.unit_ty_name Untyped.unit_ty_name
-      |> StringMap.add Sugared.string_ty_name Untyped.string_ty_name
-      |> StringMap.add Sugared.float_ty_name Untyped.float_ty_name
-      |> StringMap.add Sugared.empty_ty_name Untyped.empty_ty_name
-      |> StringMap.add Sugared.list_ty_name Untyped.list_ty_name;
-    ty_params = StringMap.empty;
-    variables = StringMap.empty;
+      LongName.(
+        NameMap.empty
+        |> NameMap.add (from_id Sugared.bool_ty_name) Untyped.bool_ty_name
+        |> NameMap.add (from_id Sugared.int_ty_name) Untyped.int_ty_name
+        |> NameMap.add (from_id Sugared.unit_ty_name) Untyped.unit_ty_name
+        |> NameMap.add (from_id Sugared.string_ty_name) Untyped.string_ty_name
+        |> NameMap.add (from_id Sugared.float_ty_name) Untyped.float_ty_name
+        |> NameMap.add (from_id Sugared.empty_ty_name) Untyped.empty_ty_name
+        |> NameMap.add (from_id Sugared.list_ty_name) Untyped.list_ty_name);
+    ty_params = NameMap.empty;
+    variables = NameMap.empty;
     labels =
-      StringMap.empty
-      |> StringMap.add Sugared.nil_label Untyped.nil_label
-      |> StringMap.add Sugared.cons_label Untyped.cons_label;
+      LongName.(
+        NameMap.empty
+        |> NameMap.add (from_id Sugared.nil_label) Untyped.nil_label
+        |> NameMap.add (from_id Sugared.cons_label) Untyped.cons_label);
   }
 
-let find_symbol ~loc map name =
-  match StringMap.find_opt name map with
-  | None -> Error.syntax ~loc "Unknown name --%s--" name
+let find_symbol ~loc state get_map path =
+  let mp = get_map state in
+  (* Try to find the symbol in the local scope. *)
+  match NameMap.find_opt (LongName.with_prefix path state.prefix) mp with
+  | None -> (
+      (* Try to find the symbol in the global scope. *)
+      match NameMap.find_opt path mp with
+      | None ->
+          Error.syntax ~loc "Unknown name --%s--" (LongName.to_string path)
+      | Some symbol -> symbol)
   | Some symbol -> symbol
 
-let lookup_ty_name ~loc state = find_symbol ~loc state.ty_names
-let lookup_ty_param ~loc state = find_symbol ~loc state.ty_params
-let lookup_variable ~loc state = find_symbol ~loc state.variables
-let lookup_label ~loc state = find_symbol ~loc state.labels
+let lookup_ty_name ~loc state = find_symbol ~loc state (fun s -> s.ty_names)
+let lookup_ty_param ~loc state = find_symbol ~loc state (fun s -> s.ty_params)
+let lookup_variable ~loc state = find_symbol ~loc state (fun s -> s.variables)
+let lookup_label ~loc state = find_symbol ~loc state (fun s -> s.labels)
 
 let rec desugar_ty state { Sugared.it = plain_ty; at = loc } =
   desugar_plain_ty ~loc state plain_ty
@@ -75,36 +89,38 @@ let rec desugar_pattern state vars { Sugared.it = pat; at = loc } =
 
 and desugar_plain_pattern ~loc state vars = function
   | Sugared.PVar x ->
-      let x' = Untyped.Variable.fresh x in
-      (StringMap.singleton x x', Untyped.PVar x')
+      let x' = Untyped.Variable.fresh (LongName.id x) in
+      (NameMap.singleton x x', Untyped.PVar x')
   | Sugared.PAnnotated (pat, ty) ->
       let vars, pat' = desugar_pattern state vars pat
       and ty' = desugar_ty state ty in
       (vars, Untyped.PAnnotated (pat', ty'))
   | Sugared.PAs (pat, x) ->
       let vars, pat' = desugar_pattern state vars pat in
-      let x' = Untyped.Variable.fresh x in
+      let x' = Untyped.Variable.fresh (LongName.id x) in
       (add_unique ~loc "Variable" x x' vars, Untyped.PAs (pat', x'))
   | Sugared.PTuple ps ->
       let aux p (vars, ps') =
         let vars', p' = desugar_pattern state vars p in
-        (StringMap.fold (add_unique ~loc "Variable") vars' vars, p' :: ps')
+        (NameMap.fold (add_unique ~loc "Variable") vars' vars, p' :: ps')
       in
-      let vars, ps' = List.fold_right aux ps (StringMap.empty, []) in
+      let vars, ps' = List.fold_right aux ps (NameMap.empty, []) in
       (vars, Untyped.PTuple ps')
   | Sugared.PVariant (lbl, None) ->
       let lbl' = lookup_label ~loc state lbl in
-      (StringMap.empty, Untyped.PVariant (lbl', None))
+      (NameMap.empty, Untyped.PVariant (lbl', None))
   | Sugared.PVariant (lbl, Some pat) ->
       let lbl' = lookup_label ~loc state lbl in
       let vars, pat' = desugar_pattern state vars pat in
       (vars, Untyped.PVariant (lbl', Some pat'))
-  | Sugared.PConst c -> (StringMap.empty, Untyped.PConst c)
-  | Sugared.PNonbinding -> (StringMap.empty, Untyped.PNonbinding)
+  | Sugared.PConst c -> (NameMap.empty, Untyped.PConst c)
+  | Sugared.PNonbinding -> (NameMap.empty, Untyped.PNonbinding)
 
 let add_fresh_variables state vars =
-  let aux x x' variables = StringMap.add x x' variables in
-  let variables' = StringMap.fold aux vars state.variables in
+  let aux x x' variables =
+    NameMap.add (LongName.with_prefix x state.prefix) x' variables
+  in
+  let variables' = NameMap.fold aux vars state.variables in
   { state with variables = variables' }
 
 let rec desugar_expression state { Sugared.it = term; at = loc } =
@@ -158,13 +174,15 @@ and desugar_plain_computation ~loc state =
   in
   function
   | Sugared.Apply
-      ({ it = Sugared.Var "(&&)"; _ }, { it = Sugared.Tuple [ t1; t2 ]; _ }) ->
+      ( { it = Sugared.Var ([], "(&&)"); _ },
+        { it = Sugared.Tuple [ t1; t2 ]; _ } ) ->
       let binds1, e1 = desugar_expression state t1 in
       let c1 = desugar_computation state t2 in
       let c2 = Untyped.Return (Untyped.Const (Const.Boolean false)) in
       (binds1, if_then_else e1 c1 c2)
   | Sugared.Apply
-      ({ it = Sugared.Var "(||)"; _ }, { it = Sugared.Tuple [ t1; t2 ]; _ }) ->
+      ( { it = Sugared.Var ([], "(||)"); _ },
+        { it = Sugared.Tuple [ t1; t2 ]; _ } ) ->
       let binds1, e1 = desugar_expression state t1 in
       let c1 = Untyped.Return (Untyped.Const (Const.Boolean true)) in
       let c2 = desugar_computation state t2 in
@@ -198,13 +216,13 @@ and desugar_plain_computation ~loc state =
       (binds, Untyped.Return expr)
 
 and desugar_abstraction state (pat, term) =
-  let vars, pat' = desugar_pattern state StringMap.empty pat in
+  let vars, pat' = desugar_pattern state NameMap.empty pat in
   let state' = add_fresh_variables state vars in
   let comp = desugar_computation state' term in
   (pat', comp)
 
 and desugar_guarded_abstraction state (pat, term1, term2) =
-  let vars, pat' = desugar_pattern state StringMap.empty pat in
+  let vars, pat' = desugar_pattern state NameMap.empty pat in
   let state' = add_fresh_variables state vars in
   let comp1 = desugar_computation state' term1
   and comp2 = desugar_computation state' term2 in
@@ -219,8 +237,8 @@ and desugar_promise_abstraction ~loc state abs2 =
   | _ -> Error.syntax ~loc "Variable or underscore expected"
 
 and desugar_let_rec_def state (f, { it = exp; at = loc }) =
-  let f' = Untyped.Variable.fresh f in
-  let state' = add_fresh_variables state (StringMap.singleton f f') in
+  let f' = Untyped.Variable.fresh (LongName.id f) in
+  let state' = add_fresh_variables state (NameMap.singleton f f') in
   let abs' =
     match exp with
     | Sugared.Lambda a -> desugar_abstraction state' a
@@ -250,16 +268,24 @@ let desugar_pure_expression state term =
   | _ -> Error.syntax ~loc:term.at "Only pure expressions are allowed"
 
 let add_label ~loc state label label' =
-  let labels' = add_unique ~loc "Label" label label' state.labels in
+  let labels' =
+    add_unique ~loc "Label"
+      (LongName.with_prefix label state.prefix)
+      label' state.labels
+  in
   { state with labels = labels' }
 
 let add_fresh_ty_names ~loc state vars =
-  let aux ty_names (x, x') = add_unique ~loc "Type" x x' ty_names in
+  let aux ty_names (x, x') =
+    add_unique ~loc "Type" (LongName.with_prefix x state.prefix) x' ty_names
+  in
   let ty_names' = List.fold_left aux state.ty_names vars in
   { state with ty_names = ty_names' }
 
 let add_fresh_ty_params state vars =
-  let aux ty_params (x, x') = StringMap.add x x' ty_params in
+  let aux ty_params (x, x') =
+    NameMap.add (LongName.with_prefix x state.prefix) x' ty_params
+  in
   let ty_params' = List.fold_left aux state.ty_params vars in
   { state with ty_params = ty_params' }
 
@@ -267,7 +293,7 @@ let desugar_ty_def ~loc state = function
   | Sugared.TyInline ty -> (state, Untyped.TyInline (desugar_ty state ty))
   | Sugared.TySum variants ->
       let aux state (label, ty) =
-        let label' = Untyped.Label.fresh label in
+        let label' = Untyped.Label.fresh (LongName.id label) in
         let ty' = Option.map (desugar_ty state) ty in
         let state' = add_label ~loc state label label' in
         (state', (label', ty'))
@@ -275,35 +301,83 @@ let desugar_ty_def ~loc state = function
       let state', variants' = List.fold_map aux state variants in
       (state', Untyped.TySum variants')
 
+let desugar_command_ty_def ~loc (state : state)
+    (defs : (LongName.t list * LongName.t * Sugared.ty_def) list) =
+  let def_name (_, ty_name, _) =
+    let ty_name' = Untyped.TyName.fresh (LongName.id ty_name) in
+    (ty_name, ty_name')
+  in
+  let new_names = List.map def_name defs in
+  let state' = add_fresh_ty_names ~loc state new_names in
+  let aux (params, _, ty_def) (_, ty_name') (state', defs) =
+    let params' =
+      List.map (fun a -> (a, Untyped.TyParam.fresh (LongName.id a))) params
+    in
+    let state'' = add_fresh_ty_params state' params' in
+    let state''', ty_def' = desugar_ty_def ~loc state'' ty_def in
+    (state''', (List.map snd params', ty_name', ty_def') :: defs)
+  in
+  let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
+  (state'', defs')
+
+let desugar_command_top_let state (x, term) =
+  let x' = Untyped.Variable.fresh (LongName.id x) in
+  let state' = add_fresh_variables state (NameMap.singleton x x') in
+  let expr = desugar_pure_expression state' term in
+  (state', (x', expr))
+
+let desugar_command_top_let_rec state (f, term) =
+  let state', f, expr = desugar_let_rec_def state (f, term) in
+  (state', (f, expr))
+
+let rec desugar_mod_def loc state def =
+  match def with
+  | Sugared.MTyDef defs ->
+      let state', defs' = desugar_command_ty_def ~loc state defs in
+      (state', Untyped.MTyDef defs')
+  | Sugared.Module (mod_name, defs) ->
+      let mod_name' = Untyped.ModName.fresh (LongName.id mod_name) in
+      let state', des_defs =
+        List.fold_left_map
+          (fun st def -> desugar_mod_def loc st def)
+          { state with prefix = state.prefix @ [ LongName.id mod_name ] }
+          defs
+      in
+      let state'' = { state' with prefix = LongName.pop state'.prefix } in
+      (state'', Untyped.MModule (mod_name', des_defs))
+  | Sugared.MTopLet (x, term) ->
+      let state', (x, expr) = desugar_command_top_let state (x, term) in
+      (state', Untyped.MTopLet (x, expr))
+  | Sugared.MTopLetRec (f, term) ->
+      let state', (f', expr) = desugar_command_top_let_rec state (f, term) in
+      (state', Untyped.MTopLet (f', expr))
+
 let desugar_command state { Sugared.it = cmd; at = loc } =
   match cmd with
   | Sugared.TyDef defs ->
-      let def_name (_, ty_name, _) =
-        let ty_name' = Untyped.TyName.fresh ty_name in
-        (ty_name, ty_name')
+      let state', defs' = desugar_command_ty_def ~loc state defs in
+      (state', Untyped.TyDef defs')
+  (* TODO: Module name should be just a string and not LongName. *)
+  | Sugared.Module (mod_name, defs) ->
+      let mod_name' = Untyped.ModName.fresh (LongName.id mod_name) in
+      let state', des_defs =
+        List.fold_left_map
+          (fun st def -> desugar_mod_def loc st def)
+          { state with prefix = state.prefix @ [ LongName.id mod_name ] }
+          defs
       in
-      let new_names = List.map def_name defs in
-      let state' = add_fresh_ty_names ~loc state new_names in
-      let aux (params, _, ty_def) (_, ty_name') (state', defs) =
-        let params' = List.map (fun a -> (a, Untyped.TyParam.fresh a)) params in
-        let state'' = add_fresh_ty_params state' params' in
-        let state''', ty_def' = desugar_ty_def ~loc state'' ty_def in
-        (state''', (List.map snd params', ty_name', ty_def') :: defs)
-      in
-      let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
-      (state'', Untyped.TyDef defs')
+      let state'' = { state' with prefix = LongName.pop state'.prefix } in
+      (state'', Untyped.Module (mod_name', des_defs))
   | Sugared.TopLet (x, term) ->
-      let x' = Untyped.Variable.fresh x in
-      let state' = add_fresh_variables state (StringMap.singleton x x') in
-      let expr = desugar_pure_expression state' term in
-      (state', Untyped.TopLet (x', expr))
+      let state', (x, expr) = desugar_command_top_let state (x, term) in
+      (state', Untyped.TopLet (x, expr))
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
   | Sugared.TopLetRec (f, term) ->
-      let state', f, expr = desugar_let_rec_def state (f, term) in
-      (state', Untyped.TopLet (f, expr))
+      let state', (f', expr) = desugar_command_top_let_rec state (f, term) in
+      (state', Untyped.TopLet (f', expr))
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in
-  add_fresh_variables state (StringMap.singleton str x)
+  add_fresh_variables state (NameMap.singleton (LongName.from_id str) x)

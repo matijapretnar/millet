@@ -94,6 +94,11 @@ let rec free_vars = function
         TyParamSet.empty tys
   | TyArrow (ty1, ty2) -> TyParamSet.union (free_vars ty1) (free_vars ty2)
 
+module ModName = Symbol.Make ()
+
+type mod_name = ModName.t
+
+module ModNameMap = Map.Make (ModName)
 module Variable = Symbol.Make ()
 module VariableMap = Map.Make (Variable)
 module Label = Symbol.Make ()
@@ -134,8 +139,14 @@ and abstraction = pattern * computation
 
 type ty_def = TySum of (label * ty option) list | TyInline of ty
 
+type mod_def =
+  | MTyDef of (ty_param list * ty_name * ty_def) list
+  | MTopLet of variable * expression
+  | MModule of mod_name * mod_def list
+
 type command =
   | TyDef of (ty_param list * ty_name * ty_def) list
+  | Module of mod_name * mod_def list
   | TopLet of variable * expression
   | TopDo of computation
 

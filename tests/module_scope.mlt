@@ -1,0 +1,29 @@
+let plus4 x = x + 4
+
+module M = struct
+
+    let add1 x = x + 1 
+
+    let add2 x = x + 2 
+
+    module N = struct
+
+        let add3 x = x + 3
+
+        let add4 x = plus4 x 
+        
+        let add5 x = add3 (M.add2 x)
+        
+    end
+
+end
+
+run M.add1 10
+run M.add2 10
+run M.N.add3 10
+run M.N.add4 10
+run M.N.add5 10
+
+
+let z = 5
+run 10 + z

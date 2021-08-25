@@ -1,0 +1,7 @@
+module M = struct
+    type num =
+    | One
+    | Two
+end
+
+run M.One

@@ -1,6 +1,7 @@
 {
   open Grammar
   open Utils
+  open Utils.LongName
 
   module StringMap = Map.Make (String)
 
@@ -32,6 +33,8 @@
     ("true", BOOL true);
     ("type", TYPE);
     ("with", WITH);
+    ("module", MODULE);
+    ("struct", STRUCT);
   ]
 
   let escaped_characters = [
@@ -51,6 +54,12 @@ let lname = ( ['a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9' '\'']*
             | ['_' 'a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9' '\'']+)
 
 let uname = ['A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9' '\'']*
+
+let name_prefix = (uname ('.' as sp))+
+
+let longlname = (name_prefix lname)
+
+let longuname = (name_prefix uname)
 
 let hexdig = ['0'-'9' 'a'-'f' 'A'-'F']
 
@@ -89,11 +98,13 @@ rule token = parse
   | lname               { let s = Lexing.lexeme lexbuf in
                             match StringMap.find_opt s reserved with
                               | Some t -> t
-                              | None -> LNAME s
+                              | None -> LNAME (LongName.from_id s)
                         }
-  | uname               { UNAME (Lexing.lexeme lexbuf) }
+  | longlname           { LONGLNAME (LongName.from_list (String.split_on_char sp (Lexing.lexeme lexbuf))) }
+  | uname               { UNAME (LongName.from_id (Lexing.lexeme lexbuf)) }
+  | longuname           { LONGUNAME (LongName.from_list (String.split_on_char sp (Lexing.lexeme lexbuf))) }
   | '\'' lname          { let str = Lexing.lexeme lexbuf in
-                          PARAM (String.sub str 1 (String.length str - 1)) }
+                          PARAM (LongName.from_id (String.sub str 1 (String.length str - 1))) }
   | '_'                 { UNDERSCORE }
   | '('                 { LPAREN }
   | ')'                 { RPAREN }

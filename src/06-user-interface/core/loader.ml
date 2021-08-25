@@ -44,6 +44,31 @@ module Loader (Backend : Backend.S) = struct
           ~loc:(Location.of_lexeme (Lexing.lexeme_start_p lexbuf))
           "unrecognised symbol."
 
+  let rec execute_mod_def state = function
+    | Ast.MTyDef ty_defs ->
+        let typechecker_state' =
+          Typechecker.add_type_definitions state.typechecker ty_defs
+        in
+        let backend_state' = Backend.load_ty_def state.backend ty_defs in
+        {
+          state with
+          typechecker = typechecker_state';
+          backend = backend_state';
+        }
+    | Ast.MTopLet (x, expr) ->
+        let typechecker_state' =
+          Typechecker.add_top_definition state.typechecker x expr
+        in
+        let backend_state' = Backend.load_top_let state.backend x expr in
+        {
+          state with
+          typechecker = typechecker_state';
+          backend = backend_state';
+        }
+    | Ast.MModule (_, mod_defs) ->
+        (* TODO: Type check the module *)
+        List.fold_left execute_mod_def state mod_defs
+
   let execute_command state = function
     | Ast.TyDef ty_defs ->
         let typechecker_state' =
@@ -69,6 +94,9 @@ module Loader (Backend : Backend.S) = struct
         let _ = Typechecker.infer state.typechecker comp in
         let backend_state' = Backend.load_top_do state.backend comp in
         { state with backend = backend_state' }
+    | Ast.Module (_, mod_defs) ->
+        (* TODO: Type check the module *)
+        List.fold_left execute_mod_def state mod_defs
 
   let load_commands state cmds =
     let desugarer_state', cmds' =

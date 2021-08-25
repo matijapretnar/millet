@@ -1,6 +1,9 @@
 open Utils
+open Utils.LongName
 
-type ty_name = string
+(* TODO: SugaredAst needs to be cleaned up. Not all ty_names, labels, etc. are LongNames.*)
+
+type ty_name = LongName.t
 
 let bool_ty_name = "bool"
 let int_ty_name = "int"
@@ -11,7 +14,7 @@ let list_ty_name = "list"
 let empty_ty_name = "empty"
 
 type 'a annotated = { it : 'a; at : Location.t }
-type ty_param = string
+type ty_param = LongName.t
 
 type ty = plain_ty annotated
 
@@ -22,9 +25,10 @@ and plain_ty =
   | TyArrow of ty * ty  (** [ty1 -> ty2] *)
   | TyTuple of ty list  (** [ty1 * ty2 * ... * tyn] *)
 
-type variable = string
-type label = string
-type operation = string
+type mod_name = LongName.t
+type variable = LongName.t
+type label = LongName.t
+type operation = LongName.t
 
 let nil_label = Language.Ast.nil_label_string
 let cons_label = Language.Ast.cons_label_string
@@ -65,11 +69,17 @@ type ty_def =
       (** [Label1 of ty1 | Label2 of ty2 | ... | Labeln of tyn | Label' | Label''] *)
   | TyInline of ty  (** [ty] *)
 
+type mod_def =
+  | MTyDef of (ty_param list * ty_name * ty_def) list
+  | MTopLet of variable * term  (** [let x = t] *)
+  | MTopLetRec of variable * term  (** [let rec f = t] *)
+  | Module of mod_name * mod_def list  (** [module M = struct ... end] *)
+
 type command = plain_command annotated
 
 and plain_command =
   | TyDef of (ty_param list * ty_name * ty_def) list
-      (** [type ('a...1) t1 = def1 and ... and ('a...n) tn = defn] *)
+  | Module of mod_name * mod_def list  (** [module M = struct ... end] *)
   | TopLet of variable * term  (** [let x = t] *)
   | TopLetRec of variable * term  (** [let rec f = t] *)
   | TopDo of term  (** [do t] *)
