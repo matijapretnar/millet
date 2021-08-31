@@ -24,11 +24,11 @@ let rec print_sequence sep pp vs ppf =
   | v :: vs ->
       Format.fprintf ppf "%t%s@,%t" (pp v) sep (print_sequence sep pp vs)
 
-let rec print_cases pp vs ppf =
+let rec print_cases ?(sep = "|") pp vs ppf =
   match vs with
   | [] -> ()
   | [ v ] -> pp v ppf
-  | v :: vs -> Format.fprintf ppf "%t@,| %t" (pp v) (print_cases pp vs)
+  | v :: vs -> Format.fprintf ppf "%t@,%s %t" (pp v) sep (print_cases pp vs)
 
 let print_field fpp vpp (f, v) ppf = print ppf "%t = %t" (fpp f) (vpp v)
 
@@ -39,3 +39,8 @@ let print_tuple pp lst ppf =
 
 let print_record fpp vpp assoc ppf =
   print ppf "{@[<hov>%t@]}" (print_sequence "; " (print_field fpp vpp) assoc)
+
+let rec print_list sep pp vs ppf =
+  match vs with
+  | [] -> ()
+  | v :: vs -> Format.fprintf ppf "%s %t@ %t" sep (pp v) (print_list sep pp vs)

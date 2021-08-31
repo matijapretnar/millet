@@ -139,6 +139,20 @@ and abstraction = pattern * computation
 
 type ty_def = TySum of (label * ty option) list | TyInline of ty
 
+let print_ty_def pp def ppf =
+  let print_ty_sum (sm : (label * ty option) list) =
+    let print_case ((lb : label), (ty_op : ty option)) ppf =
+      match ty_op with
+      | None -> Format.fprintf ppf "%t" (Label.print lb)
+      | Some ty ->
+          Format.fprintf ppf "%t of %t" (Label.print lb) (print_ty pp ty)
+    in
+    Print.print_cases print_case sm ppf
+  in
+  match def with
+  | TySum sm -> print_ty_sum sm
+  | TyInline ty -> print_ty pp ty ppf
+
 type mod_def =
   | MTyDef of (ty_param list * ty_name * ty_def) list
   | MTopLet of variable * expression

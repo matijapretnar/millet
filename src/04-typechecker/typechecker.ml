@@ -5,7 +5,15 @@ module Const = Language.Const
 type state = {
   variables : (Ast.ty_param list * Ast.ty) Ast.VariableMap.t;
   type_definitions : (Ast.ty_param list * Ast.ty_def) Ast.TyNameMap.t;
+  modules : state Ast.ModNameMap.t;
 }
+
+let empty_state =
+  {
+    variables = Ast.VariableMap.empty;
+    type_definitions = Ast.TyNameMap.empty;
+    modules = Ast.ModNameMap.empty;
+  }
 
 let initial_state =
   {
@@ -37,6 +45,7 @@ let initial_state =
                        Ast.TyApply (Ast.list_ty_name, [ Ast.TyParam a ]);
                      ]) );
             ] ));
+    modules = Ast.ModNameMap.empty;
   }
 
 let rec check_ty state = function
@@ -255,12 +264,16 @@ let infer state e =
 let add_external_function x ty_sch state =
   { state with variables = Ast.VariableMap.add x ty_sch state.variables }
 
-let add_top_definition state x expr =
+let infer_top_definition state x expr =
   let ty, eqs = infer_expression state expr in
   let subst = unify state eqs in
   let ty' = Ast.substitute_ty subst ty in
   let free_vars = Ast.free_vars ty' |> Ast.TyParamSet.elements in
   let ty_sch = (free_vars, ty') in
+  (x, ty_sch)
+
+let add_top_definition state x expr =
+  let x, ty_sch = infer_top_definition state x expr in
   add_external_function x ty_sch state
 
 let add_type_definitions state ty_defs =
@@ -276,6 +289,46 @@ let add_type_definitions state ty_defs =
   in
   List.iter (fun (_, _, ty_def) -> check_ty_def state' ty_def) ty_defs;
   state'
+
+let rec infer_signature state (md : Ast.mod_def list) =
+  let infer_mod_def state mod_state = function
+    | Ast.MTopLet (var, expr) ->
+        let var', ty_sch = infer_top_definition state var expr in
+        add_external_function var' ty_sch mod_state
+    | Ast.MTyDef ty_def -> add_type_definitions mod_state ty_def
+    | Ast.MModule (mod_name, md') ->
+        let mod_state' = infer_signature state md' in
+        {
+          mod_state with
+          modules = Ast.ModNameMap.add mod_name mod_state' mod_state.modules;
+        }
+  in
+  List.fold_left (infer_mod_def state) empty_state md
+
+let rec print_module pp (name, mod_st) ppf =
+  Format.fprintf ppf "@[<v>mod %t = %t@,@]" (Ast.ModName.print name)
+    (print_signature pp mod_st)
+
+and print_signature pp (state : state) ppf =
+  let print_named_ty_def (ty_name, (_, ty_def)) ppf =
+    Format.fprintf ppf "@[<hov>type %t = @,%t@]" (Ast.TyName.print ty_name)
+      (Ast.print_ty_def pp ty_def)
+  in
+  let print_named_vars (name, (_, ty)) ppf =
+    Format.fprintf ppf "@[<hov>%t = @,%t@]" (Ast.Variable.print name)
+      (Ast.print_ty pp ty)
+  in
+  let print_module (name, mod_st) ppf =
+    Format.fprintf ppf "@[<v>mod %t = %t@]" (Ast.ModName.print name)
+      (print_signature pp mod_st)
+  in
+  let ty_defs = List.of_seq (Ast.TyNameMap.to_seq state.type_definitions) in
+  let vars = List.of_seq (Ast.VariableMap.to_seq state.variables) in
+  let mods = List.of_seq (Ast.ModNameMap.to_seq state.modules) in
+  Print.print ppf "struct@,%t%t%tend"
+    (Print.print_list " " print_named_ty_def ty_defs)
+    (Print.print_list " " print_named_vars vars)
+    (Print.print_list " " print_module mods)
 
 let load_primitive state x prim =
   let ty_sch = Primitives.primitive_type_scheme prim in

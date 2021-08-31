@@ -1,7 +1,16 @@
 module M = struct
-    type num =
-    | One
-    | Two
+
+    let x = 10
+
+    type num = One | Two | Three
+
+    type ('a,'b) cow = Small of 'a | Large of 'b
+
+    module N = struct
+
+        let y = 20
+        
+    end
 end
 
 run M.One

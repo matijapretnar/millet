@@ -66,6 +66,7 @@ module Loader (Backend : Backend.S) = struct
           backend = backend_state';
         }
     | Ast.MModule (_, mod_defs) ->
+        let _ = Typechecker.infer_signature state.typechecker mod_defs in
         (* TODO: Type check the module *)
         List.fold_left execute_mod_def state mod_defs
 
@@ -95,7 +96,11 @@ module Loader (Backend : Backend.S) = struct
         let backend_state' = Backend.load_top_do state.backend comp in
         { state with backend = backend_state' }
     | Ast.Module (_, mod_defs) ->
-        (* TODO: Type check the module *)
+        let _ = Typechecker.infer_signature state.typechecker mod_defs in
+        (* let _ =
+             let pp = Ast.new_print_param () in
+             Typechecker.print_module pp (name, mod_st) Format.std_formatter
+           in *)
         List.fold_left execute_mod_def state mod_defs
 
   let load_commands state cmds =
