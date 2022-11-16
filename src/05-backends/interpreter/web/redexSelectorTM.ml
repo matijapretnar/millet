@@ -2,7 +2,6 @@ open Utils
 module Ast = Language.Ast
 
 let tag_marker = "###"
-
 let print_mark ppf = Format.pp_print_as ppf 0 tag_marker
 
 let print_computation_redex ?max_level red c ppf =
@@ -38,7 +37,7 @@ let split_string sep str =
     if String.sub str !sub_end sep_len = sep then (
       subs := String.sub str !sub_start (!sub_end - !sub_start) :: !subs;
       sub_start := !sub_end + sep_len;
-      sub_end := !sub_start )
+      sub_end := !sub_start)
     else incr sub_end
   done;
   if !sub_start <= str_len then
@@ -46,9 +45,9 @@ let split_string sep str =
   List.rev !subs
 
 let view_computation_with_redexes red comp =
-  ( match red with
+  (match red with
   | None -> Ast.print_computation comp Format.str_formatter
-  | Some red -> print_computation_reduction red comp Format.str_formatter );
+  | Some red -> print_computation_reduction red comp Format.str_formatter);
   match split_string tag_marker (Format.flush_str_formatter ()) with
   | [ code ] -> [ Vdom.text code ]
   | [ pre; redex; post ] ->

@@ -23,15 +23,15 @@ let select ?(a = []) empty_description msg describe_choice selected choices =
     [
       elt "select"
         ~a:[ onchange_index (fun i -> msg (List.nth choices (i - 1))) ]
-        ( elt "option"
-            ~a:
-              [
-                disabled true;
-                bool_prop "selected"
-                  (List.for_all (fun choice -> not (selected choice)) choices);
-              ]
-            [ text empty_description ]
-        :: List.map view_choice choices );
+        (elt "option"
+           ~a:
+             [
+               disabled true;
+               bool_prop "selected"
+                 (List.for_all (fun choice -> not (selected choice)) choices);
+             ]
+           [ text empty_description ]
+        :: List.map view_choice choices);
     ]
 
 let nil = text ""
@@ -47,7 +47,8 @@ let view_contents main aside =
 (* Edit view *)
 
 let view_editor (model : Model.edit_model) =
-  div ~a:[ class_ "box" ]
+  div
+    ~a:[ class_ "box" ]
     [
       elt "textarea"
         ~a:
@@ -62,22 +63,23 @@ let view_editor (model : Model.edit_model) =
     ]
 
 (* let _view (model : Model.model) =
-  match model.loaded_code with
-  | Ok code ->
-      div
-        [
-          input ~a:[type_ "range"; int_attr "min" 0; int_attr "max" 10; int_attr "step" 2; onmousedown (fun event -> Model.ParseInterrupt (string_of_int event.x))] [];
-          (* elt "progress" ~a:[type_ "range"; value (string_of_int model.random_step_size); int_attr "max" 10; oninput (fun input -> Model.ChangeStepSize input)] []; *)
-          editor model;
-          actions model code;
-          view_operations code.snapshot.operations;
-          view_process code.snapshot.process;
-        ]
-  | Error msg -> div [ editor model; text msg ] *)
+   match model.loaded_code with
+   | Ok code ->
+       div
+         [
+           input ~a:[type_ "range"; int_attr "min" 0; int_attr "max" 10; int_attr "step" 2; onmousedown (fun event -> Model.ParseInterrupt (string_of_int event.x))] [];
+           (* elt "progress" ~a:[type_ "range"; value (string_of_int model.random_step_size); int_attr "max" 10; oninput (fun input -> Model.ChangeStepSize input)] []; *)
+           editor model;
+           actions model code;
+           view_operations code.snapshot.operations;
+           view_process code.snapshot.process;
+         ]
+   | Error msg -> div [ editor model; text msg ] *)
 
 let view_compiler (model : Model.model) =
   let use_stdlib =
-    elt "label" ~a:[ class_ "panel-block" ]
+    elt "label"
+      ~a:[ class_ "panel-block" ]
       [
         input
           ~a:
@@ -92,9 +94,11 @@ let view_compiler (model : Model.model) =
       ]
   in
   let load_example =
-    div ~a:[ class_ "panel-block" ]
+    div
+      ~a:[ class_ "panel-block" ]
       [
-        div ~a:[ class_ "field" ]
+        div
+          ~a:[ class_ "field" ]
           [
             div
               ~a:[ class_ "control is-expanded" ]
@@ -121,9 +125,9 @@ let view_compiler (model : Model.model) =
               (* disabled (Result.is_error model.loaded_code); *)
             ]
           [ text "Compile & run" ];
-        ( match model.run_model with
+        (match model.run_model with
         | Error msg -> elt "p" ~a:[ class_ "help is-danger" ] [ text msg ]
-        | Ok _ -> nil );
+        | Ok _ -> nil);
       ]
   in
   panel "Code options" [ use_stdlib; load_example; run_process ]
@@ -183,7 +187,8 @@ let view_steps (run_model : Model.run_model) steps =
           ];
       ]
   and view_random_steps steps =
-    div ~a:[ class_ "panel-block" ]
+    div
+      ~a:[ class_ "panel-block" ]
       [
         div
           ~a:[ class_ "field has-addons" ]
@@ -200,7 +205,8 @@ let view_steps (run_model : Model.run_model) steps =
                   (fun step_size -> step_size = run_model.random_step_size)
                   [ 1; 2; 4; 8; 16; 32; 64; 128; 256; 512; 1024 ];
               ];
-            div ~a:[ class_ "control" ]
+            div
+              ~a:[ class_ "control" ]
               [
                 elt "button"
                   ~a:
@@ -212,18 +218,17 @@ let view_steps (run_model : Model.run_model) steps =
                   [ text "random steps" ];
               ];
           ];
-        ( if steps = [] then
-          elt "p" ~a:[ class_ "help" ]
-            [
-              text "Computation has terminated, no further steps are possible.";
-            ]
-        else text "" );
+        (if steps = [] then
+         elt "p"
+           ~a:[ class_ "help" ]
+           [ text "Computation has terminated, no further steps are possible." ]
+        else text "");
       ]
   in
   panel "Interaction"
     ~a:[ onmousemove (fun _ -> Model.RunMsg (Model.SelectStepIndex None)) ]
-    ( view_edit_source :: view_undo_last_step :: view_random_steps steps
-    :: List.mapi view_step steps )
+    (view_edit_source :: view_undo_last_step :: view_random_steps steps
+   :: List.mapi view_step steps)
 
 let run_view (run_model : Model.run_model) =
   let steps = Model.Backend.steps run_model.run_state in
@@ -239,9 +244,11 @@ let run_view (run_model : Model.run_model) =
 
 let view_navbar =
   let view_title =
-    div ~a:[ class_ "navbar-brand" ]
+    div
+      ~a:[ class_ "navbar-brand" ]
       [
-        elt "a" ~a:[ class_ "navbar-item" ]
+        elt "a"
+          ~a:[ class_ "navbar-item" ]
           [ elt "p" ~a:[ class_ "title" ] [ text "Millet" ] ];
       ]
   in
@@ -252,7 +259,7 @@ let view (model : Model.model) =
   div
     [
       view_navbar;
-      ( match model.run_model with
+      (match model.run_model with
       | Error _ -> edit_view model
-      | Ok run_model -> run_view run_model );
+      | Ok run_model -> run_view run_model);
     ]

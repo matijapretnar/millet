@@ -8,7 +8,7 @@ Install dependencies by
 
     opam install menhir ocaml-vdom ocamlformat
 
-and build Millet by running (requires OCaml >= 4.08.0)
+and build Millet by running (requires OCaml >= 4.14.0)
 
     make
 
@@ -16,7 +16,7 @@ and you can clean up by running
 
     make clean
 
-Millet gives you two options to run programs: 
+Millet gives you two options to run programs:
 
 - The first option is a web interface, accessible at `web/index.html`, which allows you to load one of the built-in examples or enter your own program, and then interactively click through all its (non-deterministic and asynchronous) reductions or introduce external interrupts. The web interface is also available at <https://matija.pretnar.info/millet/>.
 

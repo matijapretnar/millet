@@ -62,7 +62,7 @@ let run_update run_model = function
       match run_model.history with
       | run_state' :: history' ->
           { run_model with run_state = run_state'; history = history' }
-      | _ -> run_model )
+      | _ -> run_model)
   | ChangeRandomStepSize random_step_size -> { run_model with random_step_size }
 
 type model = { edit_model : edit_model; run_model : (run_model, string) result }
@@ -78,7 +78,7 @@ let update model = function
       match model.run_model with
       | Ok run_model ->
           { model with run_model = Ok (run_update run_model run_msg) }
-      | Error _ -> model )
+      | Error _ -> model)
   | RunCode ->
       let run_model =
         try

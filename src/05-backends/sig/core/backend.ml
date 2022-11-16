@@ -14,16 +14,12 @@ module type S = sig
     load_state
 
   val load_top_let : load_state -> Ast.variable -> Ast.expression -> load_state
-
   val load_top_do : load_state -> Ast.computation -> load_state
 
   type run_state
-
   type step_label
-
   type step = { label : step_label; next_state : unit -> run_state }
 
   val run : load_state -> run_state
-
   val steps : run_state -> step list
 end

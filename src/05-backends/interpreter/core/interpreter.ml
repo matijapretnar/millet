@@ -58,7 +58,7 @@ let rec match_pattern_with_expression env pat expr =
       | None, (label', None) when label = label' -> Ast.VariableMap.empty
       | Some pat, (label', Some expr) when label = label' ->
           match_pattern_with_expression env pat expr
-      | _, _ -> raise PatternMismatch )
+      | _, _ -> raise PatternMismatch)
   | Ast.PConst c when Const.equal c (eval_const env expr) ->
       Ast.VariableMap.empty
   | Ast.PNonbinding -> Ast.VariableMap.empty
@@ -99,7 +99,7 @@ let rec refresh_pattern = function
 
 let rec refresh_expression vars = function
   | Ast.Var x as expr -> (
-      match List.assoc_opt x vars with None -> expr | Some x' -> Var x' )
+      match List.assoc_opt x vars with None -> expr | Some x' -> Var x')
   | Ast.Const _ as expr -> expr
   | Ast.Annotated (expr, ty) -> Ast.Annotated (refresh_expression vars expr, ty)
   | Ast.Tuple exprs -> Ast.Tuple (List.map (refresh_expression vars) exprs)
@@ -128,7 +128,7 @@ let rec substitute_expression subst = function
   | Ast.Var x as expr -> (
       match Ast.VariableMap.find_opt x subst with
       | None -> expr
-      | Some expr -> expr )
+      | Some expr -> expr)
   | Ast.Const _ as expr -> expr
   | Ast.Annotated (expr, ty) -> Annotated (substitute_expression subst expr, ty)
   | Ast.Tuple exprs -> Tuple (List.map (substitute_expression subst) exprs)
@@ -173,7 +173,7 @@ let rec eval_function env = function
   | Ast.Var x -> (
       match Ast.VariableMap.find_opt x env.variables with
       | Some expr -> eval_function env expr
-      | None -> Ast.VariableMap.find x env.builtin_functions )
+      | None -> Ast.VariableMap.find x env.builtin_functions)
   | expr ->
       Error.runtime "Function expected but got %t" (Ast.print_expression expr)
 
@@ -189,7 +189,7 @@ let rec step_computation env = function
             match match_pattern_with_expression env pat expr with
             | subst ->
                 [ (ComputationRedex Match, fun () -> substitute subst comp) ]
-            | exception PatternMismatch -> find_case cases )
+            | exception PatternMismatch -> find_case cases)
         | [] -> []
       in
       find_case cases
@@ -209,7 +209,7 @@ let rec step_computation env = function
           let subst = match_pattern_with_expression env pat expr in
           (ComputationRedex DoReturn, fun () -> substitute subst comp2')
           :: comps1'
-      | _ -> comps1' )
+      | _ -> comps1')
 
 type load_state = {
   environment : environment;
@@ -248,9 +248,7 @@ let load_top_do load_state comp =
   { load_state with computations = load_state.computations @ [ comp ] }
 
 type run_state = load_state
-
 type step_label = ComputationReduction of computation_reduction | Return
-
 type step = { label : step_label; next_state : unit -> run_state }
 
 let run load_state = load_state

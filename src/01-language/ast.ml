@@ -1,5 +1,4 @@
 open Utils
-
 module TyName = Symbol.Make ()
 
 type ty_name = TyName.t
@@ -7,17 +6,11 @@ type ty_name = TyName.t
 module TyNameMap = Map.Make (TyName)
 
 let bool_ty_name = TyName.fresh "bool"
-
 let int_ty_name = TyName.fresh "int"
-
 let unit_ty_name = TyName.fresh "unit"
-
 let string_ty_name = TyName.fresh "string"
-
 let float_ty_name = TyName.fresh "float"
-
 let list_ty_name = TyName.fresh "list"
-
 let empty_ty_name = TyName.fresh "empty"
 
 module TyParam = Symbol.Make ()
@@ -81,7 +74,7 @@ let print_ty_scheme (_params, ty) ppf =
 let rec substitute_ty subst = function
   | TyConst _ as ty -> ty
   | TyParam a as ty -> (
-      match TyParamMap.find_opt a subst with None -> ty | Some ty' -> ty' )
+      match TyParamMap.find_opt a subst with None -> ty | Some ty' -> ty')
   | TyApply (ty_name, tys) ->
       TyApply (ty_name, List.map (substitute_ty subst) tys)
   | TyTuple tys -> TyTuple (List.map (substitute_ty subst) tys)
@@ -102,21 +95,15 @@ let rec free_vars = function
   | TyArrow (ty1, ty2) -> TyParamSet.union (free_vars ty1) (free_vars ty2)
 
 module Variable = Symbol.Make ()
-
 module VariableMap = Map.Make (Variable)
-
 module Label = Symbol.Make ()
 
 type variable = Variable.t
-
 type label = Label.t
 
 let nil_label_string = "$nil$"
-
 let nil_label = Label.fresh nil_label_string
-
 let cons_label_string = "$cons$"
-
 let cons_label = Label.fresh cons_label_string
 
 type pattern =

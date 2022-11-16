@@ -1,19 +1,13 @@
 open Utils
 
 type t = Integer of int | String of string | Boolean of bool | Float of float
-
 type ty = IntegerTy | StringTy | BooleanTy | FloatTy
 
 let of_integer n = Integer n
-
 let of_string s = String s
-
 let of_boolean b = Boolean b
-
 let of_float f = Float f
-
 let of_true = of_boolean true
-
 let of_false = of_boolean false
 
 let print c ppf =

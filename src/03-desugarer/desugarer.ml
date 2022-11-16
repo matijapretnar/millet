@@ -45,11 +45,8 @@ let find_symbol ~loc map name =
   | Some symbol -> symbol
 
 let lookup_ty_name ~loc state = find_symbol ~loc state.ty_names
-
 let lookup_ty_param ~loc state = find_symbol ~loc state.ty_params
-
 let lookup_variable ~loc state = find_symbol ~loc state.variables
-
 let lookup_label ~loc state = find_symbol ~loc state.labels
 
 let rec desugar_ty state { Sugared.it = plain_ty; at = loc } =
