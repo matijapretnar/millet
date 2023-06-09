@@ -219,10 +219,12 @@ let view_steps (run_model : Model.run_model) steps =
               ];
           ];
         (if steps = [] then
-         elt "p"
-           ~a:[ class_ "help" ]
-           [ text "Computation has terminated, no further steps are possible." ]
-        else text "");
+           elt "p"
+             ~a:[ class_ "help" ]
+             [
+               text "Computation has terminated, no further steps are possible.";
+             ]
+         else text "");
       ]
   in
   panel "Interaction"
