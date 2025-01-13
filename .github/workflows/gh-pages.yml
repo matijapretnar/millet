@@ -9,10 +9,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup OCaml
-        uses: avsm/setup-ocaml@v1
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 4.14.x
 
       - name: Install Opam packages
         run: opam install menhir vdom ocamlformat=0.24.1
