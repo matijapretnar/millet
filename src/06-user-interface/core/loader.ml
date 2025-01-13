@@ -86,6 +86,7 @@ module Loader (Backend : Backend.S) = struct
     let cmds = Parser.Lexer.read_file parse_commands source in
     load_commands state cmds
 
-  (** The module Stdlib_mlt is automatically generated from stdlib.mlt. Check the dune file for details. *)
+  (** The module Stdlib_mlt is automatically generated from stdlib.mlt. Check
+      the dune file for details. *)
   let stdlib_source = Stdlib_mlt.contents
 end

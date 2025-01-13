@@ -62,7 +62,8 @@ and guarded_abstraction = pattern * term option * term
 
 type ty_def =
   | TySum of (label * ty option) list
-      (** [Label1 of ty1 | Label2 of ty2 | ... | Labeln of tyn | Label' | Label''] *)
+      (** [Label1 of ty1 | Label2 of ty2 | ... | Labeln of tyn | Label' |
+           Label''] *)
   | TyInline of ty  (** [ty] *)
 
 type command = plain_command annotated
