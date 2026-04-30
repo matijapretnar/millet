@@ -1,4 +1,5 @@
 (cram
  (deps
   ../cli.exe
-  (source_tree .)))
+  (source_tree .)
+  (source_tree ../examples)))
