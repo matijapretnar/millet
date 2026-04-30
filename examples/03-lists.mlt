@@ -1,0 +1,67 @@
+(* ===== Structural recursion on lists ===== *)
+
+let rec sum =
+  function
+  | [] -> 0
+  | x :: xs -> x + sum xs
+
+let rec product =
+  function
+  | [] -> 1
+  | x :: xs -> x * product xs
+
+run sum [1; 2; 3; 4; 5]        (* 15 *)
+run product [1; 2; 3; 4; 5]    (* 120 *)
+
+let rec maximum =
+  function
+  | [x] -> x
+  | x :: xs -> max x (maximum xs)
+
+run maximum [3; 1; 4; 1; 5; 9; 2; 6]   (* 9 *)
+
+let rec count x =
+  function
+  | [] -> 0
+  | y :: ys -> (if x = y then 1 else 0) + count x ys
+
+run count 1 [1; 2; 1; 3; 1; 4]    (* 3 *)
+
+(* ===== Standard library list functions ===== *)
+
+run map (fun x -> x * x) [1; 2; 3; 4; 5]               (* [1; 4; 9; 16; 25] *)
+run filter (fun x -> x mod 2 = 0) [1; 2; 3; 4; 5; 6]   (* [2; 4; 6] *)
+
+(* ===== Fold ===== *)
+
+run fold_right (fun x acc -> x + acc)  [1; 2; 3; 4; 5] 0
+run fold_right (fun x acc -> x :: acc) [1; 2; 3] [4; 5]
+
+run fold_left (fun acc x -> x :: acc) [] [1; 2; 3; 4; 5]
+
+(* ===== The pipe operator ===== *)
+
+let square x = x * x
+
+run [1; 2; 3; 4; 5]
+  |> map square
+  |> filter (fun x -> x > 5)
+  |> fold_left (fun x y -> x + y) 0
+
+(* ===== Sorting ===== *)
+
+let rec insert_sorted x =
+  function
+  | [] -> [x]
+  | y :: ys -> if x <= y then x :: y :: ys else y :: insert_sorted x ys
+
+let insertion_sort xs = fold_left (fun sorted x -> insert_sorted x sorted) [] xs
+
+run insertion_sort [5; 3; 8; 1; 9; 2; 4; 7; 6]
+
+(* ===== Association lists ===== *)
+
+let capitals = [("Scotland", "Edinburgh"); ("Slovenia", "Ljubljana")]
+
+run assoc "Slovenia" capitals
+run assoc "Spain" capitals

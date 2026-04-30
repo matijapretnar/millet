@@ -24,7 +24,6 @@ and plain_ty =
 
 type variable = string
 type label = string
-type operation = string
 
 let nil_label = Language.Ast.nil_label_string
 let cons_label = Language.Ast.cons_label_string
@@ -58,7 +57,6 @@ and plain_term =
   | Apply of term * term  (** [t1 t2] *)
 
 and abstraction = pattern * term
-and guarded_abstraction = pattern * term option * term
 
 type ty_def =
   | TySum of (label * ty option) list
