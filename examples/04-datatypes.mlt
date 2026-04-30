@@ -1,0 +1,102 @@
+(* ===== Sum types ===== *)
+
+type shape =
+  | Point
+  | Circle of float
+  | Rectangle of float * float
+
+let area =
+  function
+  | Point -> 0.0
+  | Circle r -> 3.14159 *. r *. r
+  | Rectangle (w, h) -> w *. h
+
+let perimeter =
+  function
+  | Point -> 0.0
+  | Circle r -> 2.0 *. 3.14159 *. r
+  | Rectangle (w, h) -> 2.0 *. (w +. h)
+
+run area (Circle 5.0)
+run perimeter (Rectangle (3.0, 4.0))
+
+(* ===== Peano naturals ===== *)
+
+type nat =
+  | Zero
+  | Succ of nat
+
+let rec add m n =
+  match m with
+  | Zero -> n
+  | Succ m' -> Succ (add m' n)
+
+let rec multiply m n =
+  match m with
+  | Zero -> Zero
+  | Succ m' -> add n (multiply m' n)
+
+let rec to_int =
+  function
+  | Zero -> 0
+  | Succ m -> to_int m + 1
+
+let rec from_int n =
+  if n = 0 then Zero else Succ (from_int (n - 1))
+
+run
+  let six = from_int 6 in
+  let seven = Succ six in
+  let forty_two = multiply six seven in
+  to_int forty_two
+
+(* ===== Expression evaluator ===== *)
+
+type expr =
+  | Num of int
+  | Neg of expr
+  | Add of expr * expr
+  | Mul of expr * expr
+
+let rec eval =
+  function
+  | Num n -> n
+  | Neg e -> 0 - eval e
+  | Add (e1, e2) -> eval e1 + eval e2
+  | Mul (e1, e2) -> eval e1 * eval e2
+
+run eval (Neg (Mul (Num 5, Add (Num 2, Num 7))))
+run eval (Add (Mul (Num 2, Num 3), Mul (Num 4, Num 5)))
+
+(* ===== Polymorphic binary search tree ===== *)
+
+type 'a tree =
+  | Leaf
+  | Node of 'a tree * 'a * 'a tree
+
+let rec insert x =
+  function
+  | Leaf -> Node (Leaf, x, Leaf)
+  | Node (l, y, r) ->
+    if x < y then Node (insert x l, y, r)
+    else if x > y then Node (l, y, insert x r)
+    else Node (l, y, r)      (* already present: no change *)
+
+let rec contains x =
+  function
+  | Leaf -> false
+  | Node (l, y, r) ->
+    if x = y then true
+    else if x < y then contains x l
+    else contains x r
+
+let rec to_list =
+  function
+  | Leaf -> []
+  | Node (l, x, r) -> to_list l @ [x] @ to_list r
+
+let of_list xs = fold_left (fun t x -> insert x t) Leaf xs
+
+run to_list (of_list [5; 3; 7; 1; 4; 6; 8])
+run contains 4 (of_list [5; 3; 7; 1; 4; 6; 8])
+run contains 9 (of_list [5; 3; 7; 1; 4; 6; 8])

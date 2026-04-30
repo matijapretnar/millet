@@ -1,0 +1,72 @@
+(* ===== Recursion and pattern matching ===== *)
+
+let gauss n = n * (n + 1) / 2
+
+let rec sum_to =
+  function
+  | 0 -> 0
+  | n -> n + sum_to (n - 1)
+
+run gauss 100       (* 5050 *)
+run sum_to 100      (* 5050 *)
+
+let rec fact =
+  function
+  | 0 -> 1
+  | n -> n * fact (n - 1)
+
+run fact 10         (* 3628800 *)
+
+let rec gcd m =
+  function
+  | 0 -> m
+  | n -> gcd n (m mod n)
+
+run gcd 48 18    (* 6 *)
+run gcd 100 75   (* 25 *)
+
+(* ===== Fibonacci: naive vs. tail-recursive ===== *)
+
+let rec fib_slow =
+  function
+  | 0 -> 0
+  | 1 -> 1
+  | n -> fib_slow (n - 1) + fib_slow (n - 2)
+
+run fib_slow 20          (* 6765 *)
+
+let fib_fast n =
+  let rec aux n a b =
+    if n = 0 then a else aux (n - 1) b (a + b)
+  in
+  aux n 0 1
+
+run fib_fast 20     (* 6765 *)
+run fib_fast 50     (* 12586269025 *)
+
+(* ===== Pattern matching on tuples ===== *)
+
+let point_position =
+  function
+  | (0, 0) -> "origin"
+  | (_, 0) -> "x-axis"
+  | (0, _) -> "y-axis"
+  | (x, y) -> if x = y then "diagonal" else "other"
+
+run point_position (0, 0)
+run point_position (3, 0)
+run point_position (2, 2)
+run point_position (1, 3)
+
+(* ===== Option type ===== *)
+
+let safe_div x y =
+  if y = 0 then None else Some (x / y)
+
+run safe_div 10 2
+run safe_div 10 0
+
+run
+  match safe_div 20 4 with
+  | None -> "undefined"
+  | Some n -> to_string n

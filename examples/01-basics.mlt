@@ -1,0 +1,46 @@
+(* ===== Integer arithmetic ===== *)
+
+let square x = x * x
+let rectangle_perimeter a b = 2 * (a + b)
+let box_surface a b c = 2 * (a * b + a * c + b * c)
+
+run square 7
+run rectangle_perimeter 3 4
+run box_surface 1 2 3
+
+(* ===== Float arithmetic ===== *)
+
+let celsius_to_fahrenheit c = c *. 1.8 +. 32.0
+let fahrenheit_to_celsius f = (f -. 32.0) /. 1.8
+
+run celsius_to_fahrenheit 100.0
+run fahrenheit_to_celsius 98.6
+
+(* ===== Conditionals ===== *)
+
+let bmi weight height = weight /. (height *. height)
+
+let bmi_category b =
+  if b < 18.5 then "underweight"
+  else if b < 25.0 then "normal"
+  else if b < 30.0 then "overweight"
+  else "obese"
+
+run bmi_category (bmi 70.0 1.75)
+run bmi_category (bmi 50.0 1.75)
+
+(* ===== Tuples ===== *)
+
+let scale factor (x, y) = (factor *. x, factor *. y)
+let dot (x1, y1) (x2, y2) = x1 *. x2 +. y1 *. y2
+let norm (x, y) = (x *. x +. y *. y) ** 0.5
+
+run scale 2.0 (3.0, 4.0)
+run dot (1.0, 0.0) (0.0, 1.0)
+run norm (3.0, 4.0)
+
+let hours s = s / 3600
+let minutes s = s mod 3600 / 60
+let secs s = s mod 60
+
+run (hours 7384, minutes 7384, secs 7384)
