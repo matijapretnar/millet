@@ -203,21 +203,6 @@ and desugar_abstraction state (pat, term) =
   let comp = desugar_computation state' term in
   (pat', comp)
 
-and desugar_guarded_abstraction state (pat, term1, term2) =
-  let vars, pat' = desugar_pattern state StringMap.empty pat in
-  let state' = add_fresh_variables state vars in
-  let comp1 = desugar_computation state' term1
-  and comp2 = desugar_computation state' term2 in
-  (pat', comp1, comp2)
-
-and desugar_promise_abstraction ~loc state abs2 =
-  match desugar_abstraction state abs2 with
-  | Untyped.PVar p, comp' -> (p, comp')
-  | Untyped.PNonbinding, comp' ->
-      let p = Untyped.Variable.fresh "_" in
-      (p, comp')
-  | _ -> Error.syntax ~loc "Variable or underscore expected"
-
 and desugar_let_rec_def state (f, { it = exp; at = loc }) =
   let f' = Untyped.Variable.fresh f in
   let state' = add_fresh_variables state (StringMap.singleton f f') in
