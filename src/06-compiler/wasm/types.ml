@@ -1,36 +1,40 @@
 module Pack = Pack
 
-type name = Utils.Utf8.unicode 
+type name = Utils.Utf8.unicode
 
 (*types*)
 type type_idx = int
 type local_idx = int
-
-type var = StatX of type_idx | RecX of int 
-
+type var = StatX of type_idx | RecX of int
 type null = NoNull | Null
 type mut = Cons | Var
 type final = NoFinal | Final
 type init = Set | Unset
-type 'a limits = {min : 'a; max : 'a option}
-
+type 'a limits = { min : 'a; max : 'a option }
 type num_type = I32T | I64T | F32T | F64T
 type vec_type = V128T
+
 type heap_type =
-  | AnyHT | NoneHT | EqHT | I31HT | StructHT | ArrayHT
-  | FuncHT | NoFuncHT
-  | ExternHT | NoExternHT
+  | AnyHT
+  | NoneHT
+  | EqHT
+  | I31HT
+  | StructHT
+  | ArrayHT
+  | FuncHT
+  | NoFuncHT
+  | ExternHT
+  | NoExternHT
   | VarHT of var
   | DefHT of def_type
   | BotHT
+
 and ref_type = null * heap_type
 and val_type = NumT of num_type | VecT of vec_type | RefT of ref_type | BotT
 and result_type = val_type list
 and instr_type = InstrT of result_type * result_type * local_idx list
-
 and storage_type = ValStorageT of val_type | PackStorageT of Pack.pack_size
 and field_type = FieldT of mut * storage_type
-
 and struct_type = StructT of field_type list
 and array_type = ArrayT of field_type
 and func_type = FuncT of result_type * result_type
@@ -48,6 +52,7 @@ type table_type = TableT of Int.t limits * ref_type
 type memory_type = MemoryT of Int.t limits
 type global_type = GlobalT of mut * val_type
 type local_type = LocalT of init * val_type
+
 type extern_type =
   | ExternFuncT of def_type
   | ExternTableT of table_type
@@ -57,18 +62,12 @@ type extern_type =
 type export_type = ExportT of extern_type * name
 type import_type = ImportT of extern_type * name * name
 type module_type = ModuleT of import_type list * export_type list
-
 type block_type = VarBlockType of int | ValBlockType of val_type option
-
 
 (* Attributes *)
 
-let num_size = function
-  | I32T | F32T -> 4
-  | I64T | F64T -> 8
-
-let vec_size = function
-  | V128T -> 16
+let num_size = function I32T | F32T -> 4 | I64T | F64T -> 8
+let vec_size = function V128T -> 16
 
 let val_size = function
   | NumT t -> num_size t
@@ -81,34 +80,21 @@ let storage_size = function
 
 let is_stat_var = function StatX _ -> true | _ -> false
 let is_rec_var = function RecX _ -> true | _ -> false
-
 let as_stat_var = function StatX x -> x | _ -> assert false
 let as_rec_var = function RecX x -> x | _ -> assert false
-
-
-let is_num_type = function
-  | NumT _ | BotT -> true
-  | _ -> false
-
-let is_vec_type = function
-  | VecT _ | BotT -> true
-  | _ -> false
-
-let is_ref_type = function
-  | RefT _ | BotT -> true
-  | _ -> false
+let is_num_type = function NumT _ | BotT -> true | _ -> false
+let is_vec_type = function VecT _ | BotT -> true | _ -> false
+let is_ref_type = function RefT _ | BotT -> true | _ -> false
 
 let is_packed_storage_type = function
   | ValStorageT _ -> false
   | PackStorageT _ -> true
-
 
 let defaultable = function
   | NumT _ -> true
   | VecT _ -> true
   | RefT (nul, _) -> nul = Null
   | BotT -> assert false
-
 
 (* Projections *)
 
@@ -118,33 +104,28 @@ let unpacked_storage_type = function
 
 let unpacked_field_type (FieldT (_mut, t)) = unpacked_storage_type t
 
-
 let as_func_str_type (st : str_type) : func_type =
-  match st with
-  | DefFuncT ft -> ft
-  | _ -> assert false
+  match st with DefFuncT ft -> ft | _ -> assert false
 
 let as_struct_str_type (st : str_type) : struct_type =
-  match st with
-  | DefStructT st -> st
-  | _ -> assert false
+  match st with DefStructT st -> st | _ -> assert false
 
 let as_array_str_type (st : str_type) : array_type =
-  match st with
-  | DefArrayT at -> at
-  | _ -> assert false
+  match st with DefArrayT at -> at | _ -> assert false
 
 let extern_type_of_import_type (ImportT (et, _, _)) = et
 let extern_type_of_export_type (ExportT (et, _)) = et
-
 
 (* Filters *)
 
 let funcs = List.filter_map (function ExternFuncT ft -> Some ft | _ -> None)
 let tables = List.filter_map (function ExternTableT tt -> Some tt | _ -> None)
-let memories = List.filter_map (function ExternMemoryT mt -> Some mt | _ -> None)
-let globals = List.filter_map (function ExternGlobalT gt -> Some gt | _ -> None)
 
+let memories =
+  List.filter_map (function ExternMemoryT mt -> Some mt | _ -> None)
+
+let globals =
+  List.filter_map (function ExternGlobalT gt -> Some gt | _ -> None)
 
 (* Substitution *)
 
@@ -154,9 +135,7 @@ let subst_of dts = function
   | StatX x -> DefHT (List.nth dts x)
   | RecX i -> VarHT (RecX i)
 
-
 let subst_num_type _ t = t
-
 let subst_vec_type _ t = t
 
 let subst_heap_type s = function
@@ -171,11 +150,10 @@ let subst_heap_type s = function
   | ExternHT -> ExternHT
   | NoExternHT -> NoExternHT
   | VarHT x -> s x
-  | DefHT dt -> DefHT dt  (* assume closed *)
+  | DefHT dt -> DefHT dt (* assume closed *)
   | BotHT -> BotHT
 
-let subst_ref_type s = function
-  | (nul, t) -> (nul, subst_heap_type s t)
+let subst_ref_type s = function nul, t -> (nul, subst_heap_type s t)
 
 let subst_val_type s = function
   | NumT t -> NumT (subst_num_type s t)
@@ -183,9 +161,7 @@ let subst_val_type s = function
   | RefT t -> RefT (subst_ref_type s t)
   | BotT -> BotT
 
-let subst_result_type s = function
-  | ts -> List.map (subst_val_type s) ts
-
+let subst_result_type s = function ts -> List.map (subst_val_type s) ts
 
 let subst_storage_type s = function
   | ValStorageT t -> ValStorageT (subst_val_type s t)
@@ -197,8 +173,7 @@ let subst_field_type s = function
 let subst_struct_type s = function
   | StructT ts -> StructT (List.map (subst_field_type s) ts)
 
-let subst_array_type s = function
-  | ArrayT t -> ArrayT (subst_field_type s t)
+let subst_array_type s = function ArrayT t -> ArrayT (subst_field_type s t)
 
 let subst_func_type s = function
   | FuncT (ts1, ts2) -> FuncT (subst_result_type s ts1, subst_result_type s ts2)
@@ -210,23 +185,19 @@ let subst_str_type s = function
 
 let subst_sub_type s = function
   | SubT (fin, hts, st) ->
-    SubT (fin, List.map (subst_heap_type s) hts, subst_str_type s st)
+      SubT (fin, List.map (subst_heap_type s) hts, subst_str_type s st)
 
 let subst_rec_type s = function
   | RecT sts -> RecT (List.map (subst_sub_type s) sts)
 
-let subst_def_type s = function
-  | DefT (rt, i) -> DefT (subst_rec_type s rt, i)
-
-
-let subst_memory_type _ = function
-  | MemoryT lim -> MemoryT lim
+let subst_def_type s = function DefT (rt, i) -> DefT (subst_rec_type s rt, i)
+let subst_memory_type _ = function MemoryT lim -> MemoryT lim
 
 let subst_table_type s = function
   | TableT (lim, t) -> TableT (lim, subst_ref_type s t)
 
 let subst_global_type s = function
-  | GlobalT (mut, t) ->  GlobalT (mut, subst_val_type s t)
+  | GlobalT (mut, t) -> GlobalT (mut, subst_val_type s t)
 
 let subst_extern_type s = function
   | ExternFuncT dt -> ExternFuncT (subst_def_type s dt)
@@ -234,26 +205,22 @@ let subst_extern_type s = function
   | ExternMemoryT mt -> ExternMemoryT (subst_memory_type s mt)
   | ExternGlobalT gt -> ExternGlobalT (subst_global_type s gt)
 
-
 let subst_export_type s = function
   | ExportT (et, name) -> ExportT (subst_extern_type s et, name)
 
 let subst_import_type s = function
   | ImportT (et, module_name, name) ->
-    ImportT (subst_extern_type s et, module_name, name)
+      ImportT (subst_extern_type s et, module_name, name)
 
 let subst_module_type s = function
   | ModuleT (its, ets) ->
-    ModuleT (
-      List.map (subst_import_type s) its,
-      List.map (subst_export_type s) ets
-    )
-
+      ModuleT
+        (List.map (subst_import_type s) its, List.map (subst_export_type s) ets)
 
 (* Recursive types *)
 
 let roll_rec_type x (rt : rec_type) : rec_type =
-  let RecT sts = rt in
+  let (RecT sts) = rt in
   let y = Int.add x (List.length sts) in
   let s = function
     | StatX x' when x <= x' && x' < y -> VarHT (RecX (Int.sub x' x))
@@ -262,31 +229,25 @@ let roll_rec_type x (rt : rec_type) : rec_type =
   subst_rec_type s rt
 
 let roll_def_types x (rt : rec_type) : def_type list =
-  let RecT sts as rt' = roll_rec_type x rt in
+  let (RecT sts as rt') = roll_rec_type x rt in
   List.mapi (fun i _ -> DefT (rt', i)) sts
 
-
 let unroll_rec_type (rt : rec_type) : rec_type =
-  let s = function
-    | RecX i -> DefHT (DefT (rt, i))
-    | var -> VarHT var
-  in
+  let s = function RecX i -> DefHT (DefT (rt, i)) | var -> VarHT var in
   subst_rec_type s rt
 
 let unroll_def_type (dt : def_type) : sub_type =
-  let DefT (rt, i) = dt in
-  let RecT sts = unroll_rec_type rt in
+  let (DefT (rt, i)) = dt in
+  let (RecT sts) = unroll_rec_type rt in
   List.nth sts i
 
 let expand_def_type (dt : def_type) : str_type =
-  let SubT (_, _, st) = unroll_def_type dt in
+  let (SubT (_, _, st)) = unroll_def_type dt in
   st
-
 
 (* String conversion *)
 
-let string_of_idx x =
-  string_of_int x
+let string_of_idx x = string_of_int x
 
 let string_of_name n =
   let b = Buffer.create 16 in
@@ -306,18 +267,9 @@ let string_of_var = function
   | StatX x -> string_of_int x
   | RecX x -> "rec." ^ string_of_int x
 
-let string_of_null = function
-  | NoNull -> ""
-  | Null -> "null "
-
-let string_of_final = function
-  | NoFinal -> ""
-  | Final -> " final"
-
-let string_of_mut s = function
-  | Cons -> s
-  | Var -> "(mut " ^ s ^ ")"
-
+let string_of_null = function NoNull -> "" | Null -> "null "
+let string_of_final = function NoFinal -> "" | Final -> " final"
+let string_of_mut s = function Cons -> s | Var -> "(mut " ^ s ^ ")"
 
 let string_of_num_type = function
   | I32T -> "i32"
@@ -325,8 +277,7 @@ let string_of_num_type = function
   | F32T -> "f32"
   | F64T -> "f64"
 
-let string_of_vec_type = function
-  | V128T -> "v128"
+let string_of_vec_type = function V128T -> "v128"
 
 let rec string_of_heap_type = function
   | AnyHT -> "any"
@@ -344,7 +295,7 @@ let rec string_of_heap_type = function
   | BotHT -> "something"
 
 and string_of_ref_type = function
-  | (null, t) -> "(ref " ^ string_of_null null ^ string_of_heap_type t ^ ")"
+  | null, t -> "(ref " ^ string_of_null null ^ string_of_heap_type t ^ ")"
 
 and string_of_val_type = function
   | NumT t -> string_of_num_type t
@@ -352,10 +303,8 @@ and string_of_val_type = function
   | RefT t -> string_of_ref_type t
   | BotT -> "bot"
 
-
 and string_of_result_type = function
   | ts -> "[" ^ String.concat " " (List.map string_of_val_type ts) ^ "]"
-
 
 and string_of_storage_type = function
   | ValStorageT t -> string_of_val_type t
@@ -366,14 +315,14 @@ and string_of_field_type = function
 
 and string_of_struct_type = function
   | StructT fts ->
-    String.concat " " (List.map (fun ft -> "(field " ^ string_of_field_type ft ^ ")") fts)
+      String.concat " "
+        (List.map (fun ft -> "(field " ^ string_of_field_type ft ^ ")") fts)
 
-and string_of_array_type = function
-  | ArrayT ft -> string_of_field_type ft
+and string_of_array_type = function ArrayT ft -> string_of_field_type ft
 
 and string_of_func_type = function
   | FuncT (ts1, ts2) ->
-    string_of_result_type ts1 ^ " -> " ^ string_of_result_type ts2
+      string_of_result_type ts1 ^ " -> " ^ string_of_result_type ts2
 
 and string_of_str_type = function
   | DefStructT st -> "struct " ^ string_of_struct_type st
@@ -383,28 +332,27 @@ and string_of_str_type = function
 and string_of_sub_type = function
   | SubT (Final, [], st) -> string_of_str_type st
   | SubT (fin, hts, st) ->
-    String.concat " "
-      (("sub" ^ string_of_final fin) :: List.map string_of_heap_type hts) ^
-    " (" ^ string_of_str_type st ^ ")"
+      String.concat " "
+        (("sub" ^ string_of_final fin) :: List.map string_of_heap_type hts)
+      ^ " (" ^ string_of_str_type st ^ ")"
 
 and string_of_rec_type = function
-  | RecT [st] -> string_of_sub_type st
+  | RecT [ st ] -> string_of_sub_type st
   | RecT sts ->
-    "rec " ^
-    String.concat " " (List.map (fun st -> "(" ^ string_of_sub_type st ^ ")") sts)
+      "rec "
+      ^ String.concat " "
+          (List.map (fun st -> "(" ^ string_of_sub_type st ^ ")") sts)
 
 and string_of_def_type = function
-  | DefT (RecT [st], 0) -> string_of_sub_type st
+  | DefT (RecT [ st ], 0) -> string_of_sub_type st
   | DefT (rt, i) -> "(" ^ string_of_rec_type rt ^ ")." ^ string_of_int i
 
-
 let string_of_limits = function
-  | {min; max} ->
-    string_of_int min ^
-    (match max with None -> "" | Some n -> " " ^ string_of_int n)
+  | { min; max } -> (
+      string_of_int min
+      ^ match max with None -> "" | Some n -> " " ^ string_of_int n)
 
-let string_of_memory_type = function
-  | MemoryT lim -> string_of_limits lim
+let string_of_memory_type = function MemoryT lim -> string_of_limits lim
 
 let string_of_table_type = function
   | TableT (lim, t) -> string_of_limits lim ^ " " ^ string_of_ref_type t
@@ -422,19 +370,17 @@ let string_of_extern_type = function
   | ExternMemoryT mt -> "memory " ^ string_of_memory_type mt
   | ExternGlobalT gt -> "global " ^ string_of_global_type gt
 
-
 let string_of_export_type = function
   | ExportT (et, name) ->
-    "\"" ^ string_of_name name ^ "\" : " ^ string_of_extern_type et
+      "\"" ^ string_of_name name ^ "\" : " ^ string_of_extern_type et
 
 let string_of_import_type = function
   | ImportT (et, module_name, name) ->
-    "\"" ^ string_of_name module_name ^ "\" \"" ^
-      string_of_name name ^ "\" : " ^ string_of_extern_type et
+      "\"" ^ string_of_name module_name ^ "\" \"" ^ string_of_name name
+      ^ "\" : " ^ string_of_extern_type et
 
 let string_of_module_type = function
   | ModuleT (its, ets) ->
-    String.concat "" (
-      List.map (fun it -> "import " ^ string_of_import_type it ^ "\n") its @
-      List.map (fun et -> "export " ^ string_of_export_type et ^ "\n") ets
-    )
+      String.concat ""
+        (List.map (fun it -> "import " ^ string_of_import_type it ^ "\n") its
+        @ List.map (fun et -> "export " ^ string_of_export_type et ^ "\n") ets)

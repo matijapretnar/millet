@@ -27,28 +27,28 @@ let binary_float_op_ty =
 let comparison_int_ty =
   ( [],
     Ast.TyArrow
-      ( Ast.TyTuple [ Ast.TyConst Const.IntegerTy; Ast.TyConst Const.IntegerTy],
-        Ast.TyConst Const.BooleanTy) )
+      ( Ast.TyTuple [ Ast.TyConst Const.IntegerTy; Ast.TyConst Const.IntegerTy ],
+        Ast.TyConst Const.BooleanTy ) )
 
 let comparison_float_ty =
   ( [],
     Ast.TyArrow
-      ( Ast.TyTuple [ Ast.TyConst Const.FloatTy ; Ast.TyConst Const.FloatTy],
-        Ast.TyConst Const.BooleanTy) )
+      ( Ast.TyTuple [ Ast.TyConst Const.FloatTy; Ast.TyConst Const.FloatTy ],
+        Ast.TyConst Const.BooleanTy ) )
 
 let primitive_type_scheme = function
-  | Primitives.CompareIntEq -> comparison_int_ty 
-  | Primitives.CompareIntLt -> comparison_int_ty 
-  | Primitives.CompareIntGt -> comparison_int_ty 
-  | Primitives.CompareIntLe -> comparison_int_ty 
-  | Primitives.CompareIntGe -> comparison_int_ty 
-  | Primitives.CompareIntNe -> comparison_int_ty 
-  | Primitives.CompareFloatEq -> comparison_float_ty 
-  | Primitives.CompareFloatLt -> comparison_float_ty 
-  | Primitives.CompareFloatGt -> comparison_float_ty 
-  | Primitives.CompareFloatLe -> comparison_float_ty 
-  | Primitives.CompareFloatGe -> comparison_float_ty 
-  | Primitives.CompareFloatNe -> comparison_float_ty 
+  | Primitives.CompareIntEq -> comparison_int_ty
+  | Primitives.CompareIntLt -> comparison_int_ty
+  | Primitives.CompareIntGt -> comparison_int_ty
+  | Primitives.CompareIntLe -> comparison_int_ty
+  | Primitives.CompareIntGe -> comparison_int_ty
+  | Primitives.CompareIntNe -> comparison_int_ty
+  | Primitives.CompareFloatEq -> comparison_float_ty
+  | Primitives.CompareFloatLt -> comparison_float_ty
+  | Primitives.CompareFloatGt -> comparison_float_ty
+  | Primitives.CompareFloatLe -> comparison_float_ty
+  | Primitives.CompareFloatGe -> comparison_float_ty
+  | Primitives.CompareFloatNe -> comparison_float_ty
   | Primitives.IntegerAdd -> binary_integer_op_ty
   | Primitives.IntegerMul -> binary_integer_op_ty
   | Primitives.IntegerSub -> binary_integer_op_ty

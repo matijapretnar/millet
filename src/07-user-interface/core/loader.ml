@@ -8,7 +8,7 @@ module Loader (Backend : Backend.S) = struct
     desugarer : Desugarer.state;
     backend : Backend.load_state;
     typechecker : Typechecker.state;
-    compiler : Compiler.comp_state
+    compiler : Compiler.comp_state;
   }
 
   let load_primitive state prim =
@@ -22,7 +22,8 @@ module Loader (Backend : Backend.S) = struct
       desugarer = desugarer_state';
       typechecker = typechecker_state';
       backend = backend_state';
-      compiler = {state.compiler with prims = (x, prim) :: state.compiler.prims}
+      compiler =
+        { state.compiler with prims = (x, prim) :: state.compiler.prims };
     }
 
   let initial_state =
@@ -31,7 +32,7 @@ module Loader (Backend : Backend.S) = struct
         desugarer = Desugarer.initial_state;
         typechecker = Typechecker.initial_state;
         backend = Backend.initial_load_state;
-        compiler = {cmds = []; prims = []} 
+        compiler = { cmds = []; prims = [] };
       }
     in
 
@@ -69,12 +70,18 @@ module Loader (Backend : Backend.S) = struct
           state with
           typechecker = typechecker_state';
           backend = backend_state';
-          compiler = {state.compiler with cmds = state.compiler.cmds @ [cmd]}
+          compiler =
+            { state.compiler with cmds = state.compiler.cmds @ [ cmd ] };
         }
     | Ast.TopDo comp ->
         let _, cmd = Typechecker.infer state.typechecker comp in
         let backend_state' = Backend.load_top_do state.backend comp in
-        { state with backend = backend_state'; compiler = {state.compiler with cmds = state.compiler.cmds @ [TopDo cmd]} }
+        {
+          state with
+          backend = backend_state';
+          compiler =
+            { state.compiler with cmds = state.compiler.cmds @ [ TopDo cmd ] };
+        }
 
   let load_commands state cmds =
     let desugarer_state', cmds' =
@@ -91,9 +98,11 @@ module Loader (Backend : Backend.S) = struct
   let load_file state source =
     let cmds = Parser.Lexer.read_file parse_commands source in
     load_commands state cmds
-  
+
   let write_to_file file prog =
-    let name = (Filename.basename file |> String.split_on_char '.' |> List.hd) ^ ".wat" in
+    let name =
+      (Filename.basename file |> String.split_on_char '.' |> List.hd) ^ ".wat"
+    in
     let oc = open_out name in
     (* create or truncate file, return channel *)
     Printf.fprintf oc "%s\n" prog;
@@ -116,6 +125,7 @@ module Loader (Backend : Backend.S) = struct
       (* emergency closing *)
       raise e
 
-  (** The module Stdlib_mlt is automatically generated from stdlib.mlt. Check the dune file for details. *)
+  (** The module Stdlib_mlt is automatically generated from stdlib.mlt. Check
+      the dune file for details. *)
   let stdlib_source = Stdlib_mlt.contents
 end

@@ -3,7 +3,7 @@ module Ast = Language.Ast
 module Const = Language.Const
 module TypedAst = TypedAst
 
-let make_phrase x t = Source.{it = x; et = Some t} 
+let make_phrase x t = Source.{ it = x; et = Some t }
 
 type state = {
   variables : (Ast.ty_param list * Ast.ty) Ast.VariableMap.t;
@@ -111,9 +111,9 @@ let rec infer_pattern state = function
       let ty', vars, eqs, pat' = infer_pattern state pat in
       let phrase_pat = TypedAst.make_pattern (PAnnotated (pat', ty)) ty in
       (ty, vars, (ty, ty') :: eqs, phrase_pat)
-  | Ast.PConst c as x-> 
-    let pat = TypedAst.make_const_pat x in
-    (Ast.TyConst (Const.infer_ty c), [], [], pat)
+  | Ast.PConst c as x ->
+      let pat = TypedAst.make_const_pat x in
+      (Ast.TyConst (Const.infer_ty c), [], [], pat)
   | Ast.PNonbinding ->
       let ty = fresh_ty () in
       let pat = TypedAst.make_pattern PNonbinding ty in
@@ -129,12 +129,16 @@ let rec infer_pattern state = function
   | Ast.PVariant (lbl, pat) -> (
       let ty_in, ty_out = infer_variant state lbl in
       match (ty_in, pat) with
-      | None, None -> 
-        let phrase_pat = TypedAst.make_pattern (PVariant (lbl, None)) ty_out in
-        (ty_out, [], [], phrase_pat)
+      | None, None ->
+          let phrase_pat =
+            TypedAst.make_pattern (PVariant (lbl, None)) ty_out
+          in
+          (ty_out, [], [], phrase_pat)
       | Some ty_in, Some pat ->
           let ty, vars, eqs, pat' = infer_pattern state pat in
-          let phrase_pat = TypedAst.make_pattern (PVariant (lbl, Some pat')) ty_out in
+          let phrase_pat =
+            TypedAst.make_pattern (PVariant (lbl, Some pat')) ty_out
+          in
           (ty_out, vars, (ty_in, ty) :: eqs, phrase_pat)
       | None, Some _ | Some _, None ->
           Error.typing "Variant optional argument mismatch")
@@ -146,9 +150,9 @@ let rec infer_expression state = function
       let ty' = Ast.substitute_ty subst ty in
       let expr = TypedAst.make_expression (Var x) ty' in
       (ty', [], expr)
-  | Ast.Const c as x -> 
-    let expr = TypedAst.make_const_expr x in
-    (Ast.TyConst (Const.infer_ty c), [], expr)
+  | Ast.Const c as x ->
+      let expr = TypedAst.make_const_expr x in
+      (Ast.TyConst (Const.infer_ty c), [], expr)
   | Ast.Annotated (expr, ty) ->
       let ty', eqs, expr' = infer_expression state expr in
       let phrase_expr = TypedAst.make_expression (Annotated (expr', ty)) ty in
@@ -159,7 +163,9 @@ let rec infer_expression state = function
         (ty' :: tys, eqs' @ eqs, expr' :: exprs)
       in
       let tys, eqs, exprs = List.fold_right fold exprs ([], [], []) in
-      let phrase_expr = TypedAst.make_expression (Tuple exprs) (Ast.TyTuple tys) in
+      let phrase_expr =
+        TypedAst.make_expression (Tuple exprs) (Ast.TyTuple tys)
+      in
       (Ast.TyTuple tys, eqs, phrase_expr)
   | Ast.Lambda abs ->
       let ty, ty', eqs, abs = infer_abstraction state abs in
@@ -170,17 +176,21 @@ let rec infer_expression state = function
       let state' = extend_variables state [ (f, f_ty) ] in
       let ty, ty', eqs, abs = infer_abstraction state' abs in
       let out_ty = Ast.TyArrow (ty, ty') in
-      let expr = TypedAst.make_expression (RecLambda (f, abs)) (TyArrow (f_ty, out_ty)) in
+      let expr =
+        TypedAst.make_expression (RecLambda (f, abs)) (TyArrow (f_ty, out_ty))
+      in
       (out_ty, (f_ty, out_ty) :: eqs, expr)
   | Ast.Variant (lbl, expr) -> (
       let ty_in, ty_out = infer_variant state lbl in
       match (ty_in, expr) with
-      | None, None -> 
-        let expr = TypedAst.make_expression (Variant (lbl, None)) ty_out in
-        (ty_out, [], expr)
+      | None, None ->
+          let expr = TypedAst.make_expression (Variant (lbl, None)) ty_out in
+          (ty_out, [], expr)
       | Some ty_in, Some expr ->
           let ty, eqs, expr' = infer_expression state expr in
-          let phrase_expr = TypedAst.make_expression (Variant (lbl, Some expr')) ty_out in
+          let phrase_expr =
+            TypedAst.make_expression (Variant (lbl, Some expr')) ty_out
+          in
           (ty_out, (ty_in, ty) :: eqs, phrase_expr)
       | None, Some _ | Some _, None ->
           Error.typing "Variant optional argument mismatch")
@@ -202,16 +212,16 @@ and infer_computation state = function
       let comp = TypedAst.make_computation (Apply (expr1, expr2)) a in
       (a, ((t1, Ast.TyArrow (t2, a)) :: eqs1) @ eqs2, comp)
   | Ast.Match (e, cases) ->
-    let ty1, eqs, expr = infer_expression state e and ty2 = fresh_ty () in
-    let fold (eqs, abstractions) abs =
+      let ty1, eqs, expr = infer_expression state e and ty2 = fresh_ty () in
+      let fold (eqs, abstractions) abs =
         let ty1', ty2', eqs', abs' = infer_abstraction state abs in
         let updated_eqs = ((ty1, ty1') :: (ty2, ty2') :: eqs') @ eqs in
         let updated_abstractions = abs' :: abstractions in
         (updated_eqs, updated_abstractions)
-    in
-    let eqs, abstractions = List.fold_left fold (eqs, []) cases in
-    let comp = TypedAst.make_computation (Match (expr, abstractions)) ty2 in
-    (ty2, eqs, comp)
+      in
+      let eqs, abstractions = List.fold_left fold (eqs, []) cases in
+      let comp = TypedAst.make_computation (Match (expr, abstractions)) ty2 in
+      (ty2, eqs, comp)
 
 and infer_abstraction state (pat, comp) =
   let ty, vars, eqs, pat' = infer_pattern state pat in
@@ -278,77 +288,71 @@ let rec unify state = function
         (Ast.print_ty print_param t1)
         (Ast.print_ty print_param t2)
 
-let update_et_value phrase sbst= 
+let update_et_value phrase sbst =
   match phrase.Source.et with
   | None -> ()
   | Some x -> Source.update_et_value phrase (Ast.substitute_ty sbst x)
 
 let rec update_pattern sbst pat =
   update_et_value pat sbst;
-  match pat.Source.it with 
+  match pat.Source.it with
   | TypedAst.PAnnotated (p, _) -> update_pattern sbst p
   | PAs (p, _) -> update_pattern sbst p
   | PTuple ps -> List.iter (update_pattern sbst) ps
-  | PVariant (_, p) -> 
-    (match p with 
-    | None -> ()
-    | Some p -> update_pattern sbst p)
+  | PVariant (_, p) -> (
+      match p with None -> () | Some p -> update_pattern sbst p)
   | _ -> ()
 
 and update_expression sbst expr =
   update_et_value expr sbst;
   match expr.Source.it with
-  | TypedAst.Annotated (e, _) -> update_expression sbst e 
-  | Tuple es -> 
-    List.iter (update_expression sbst) es
-  | Variant (_, e) -> 
-    (match e with 
-    | None -> ()
-    | Some e -> update_expression sbst e)
-  | Lambda abs -> update_abstraction sbst abs 
-  | RecLambda (_, abs) -> update_abstraction sbst abs 
+  | TypedAst.Annotated (e, _) -> update_expression sbst e
+  | Tuple es -> List.iter (update_expression sbst) es
+  | Variant (_, e) -> (
+      match e with None -> () | Some e -> update_expression sbst e)
+  | Lambda abs -> update_abstraction sbst abs
+  | RecLambda (_, abs) -> update_abstraction sbst abs
   | _ -> ()
 
-and update_computation sbst (comp : TypedAst.computation) = 
+and update_computation sbst (comp : TypedAst.computation) =
   update_et_value comp sbst;
-  match comp.Source.it with 
-  | TypedAst.Match (exp, abs) -> 
-    update_expression sbst exp;
-    List.iter (update_abstraction sbst) abs;
-  | Do (comp1, comp2)-> 
-    update_computation sbst comp1;
-    update_abstraction sbst comp2 ;
-  | Apply (exp1, exp2) -> 
-    update_expression sbst exp1;
-    update_expression sbst exp2;
-  | Return x -> 
-    update_expression sbst x;
+  match comp.Source.it with
+  | TypedAst.Match (exp, abs) ->
+      update_expression sbst exp;
+      List.iter (update_abstraction sbst) abs
+  | Do (comp1, comp2) ->
+      update_computation sbst comp1;
+      update_abstraction sbst comp2
+  | Apply (exp1, exp2) ->
+      update_expression sbst exp1;
+      update_expression sbst exp2
+  | Return x -> update_expression sbst x
 
 and update_abstraction sbst (abs : TypedAst.abstraction) =
   match abs.Source.it with
-  | (pat, comp) ->
-    update_pattern sbst pat;
-    update_computation sbst comp;
-    update_et_value abs sbst
+  | pat, comp ->
+      update_pattern sbst pat;
+      update_computation sbst comp;
+      update_et_value abs sbst
 
 let infer state e =
   let t, eqs, comp = infer_computation state e in
   let sbst = unify state eqs in
   let t' = Ast.substitute_ty sbst t in
   update_computation sbst comp;
-  t', comp
+  (t', comp)
 
 let add_external_function x ty_sch state =
   { state with variables = Ast.VariableMap.add x ty_sch state.variables }
 
 let add_top_definition state x expr =
-  let ty, eqs, expr'  = infer_expression state expr in
+  let ty, eqs, expr' = infer_expression state expr in
   let subst = unify state eqs in
   let ty' = Ast.substitute_ty subst ty in
   let free_vars = Ast.free_vars ty' |> Ast.TyParamSet.elements in
   let ty_sch = (free_vars, ty') in
   update_expression subst expr';
-  add_external_function x ty_sch state, TypedAst.TopLet (x, expr')
+  (add_external_function x ty_sch state, TypedAst.TopLet (x, expr'))
 
 let add_type_definitions state ty_defs =
   let state' =
@@ -368,13 +372,17 @@ let load_primitive state x prim =
   let ty_sch = Primitives.primitive_type_scheme prim in
   add_external_function x ty_sch state
 
-let rec eq t1 t2 = 
-  t1 == t2 || 
-  match t1, t2 with 
-  | Ast.TyTuple tys1, Ast.TyTuple tys2 -> 
-    List.length tys1 = List.length tys2 && List.for_all2 eq tys1 tys2
-  | Ast.TyArrow (from1, to1), Ast.TyArrow (from2, to2) -> eq from1 from2 && eq to1 to2
-  | Ast.TyApply (name1, params1), Ast.TyApply (name2, params2) -> 
-    List.length params1 = List.length params2 && List.for_all2 eq params1 params2 && name1 == name2
+let rec eq t1 t2 =
+  t1 == t2
+  ||
+  match (t1, t2) with
+  | Ast.TyTuple tys1, Ast.TyTuple tys2 ->
+      List.length tys1 = List.length tys2 && List.for_all2 eq tys1 tys2
+  | Ast.TyArrow (from1, to1), Ast.TyArrow (from2, to2) ->
+      eq from1 from2 && eq to1 to2
+  | Ast.TyApply (name1, params1), Ast.TyApply (name2, params2) ->
+      List.length params1 = List.length params2
+      && List.for_all2 eq params1 params2
+      && name1 == name2
   | Ast.TyConst ty1, Ast.TyConst ty2 -> ty1 == ty2
   | ty1, ty2 -> ty1 = ty2

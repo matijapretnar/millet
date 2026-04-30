@@ -2,8 +2,6 @@ open Utils
 module Ast = Language.Ast
 module Const = Language.Const
 
-
-
 type environment = {
   variables : Ast.expression Ast.VariableMap.t;
   builtin_functions : (Ast.expression -> Ast.computation) Ast.VariableMap.t;
@@ -183,7 +181,6 @@ let step_in_context step env redCtx ctx term =
   let terms' = step env term in
   List.map (fun (red, term') -> (redCtx red, fun () -> ctx (term' ()))) terms'
 
-
 let rec step_computation env = function
   | Ast.Return _ -> []
   | Ast.Match (expr, cases) ->
@@ -218,7 +215,6 @@ type load_state = {
   environment : environment;
   computations : Ast.computation list;
 }
-
 
 let initial_load_state =
   { environment = initial_environment; computations = [] }
