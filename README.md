@@ -8,9 +8,9 @@ To explore asynchronous effects with [AEff](https://github.com/matijapretnar/aef
 
 Install dependencies with
 
-    opam install menhir vdom ocamlformat=0.27.0
+    opam install menhir vdom ocamlformat=0.29.0
 
-then build (requires OCaml >= 4.14.0) with
+then build (requires OCaml >= 5.4.0) with
 
     make
 
