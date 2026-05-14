@@ -243,9 +243,9 @@ let add_fresh_ty_names ~loc state vars =
   let ty_names' = List.fold_left aux state.ty_names vars in
   { state with ty_names = ty_names' }
 
-let add_fresh_ty_params state vars =
-  let aux ty_params (x, x') = StringMap.add x x' ty_params in
-  let ty_params' = List.fold_left aux state.ty_params vars in
+let add_fresh_ty_params state params =
+  let aux ty_params p = StringMap.add p (Untyped.TyParam.fresh p) ty_params in
+  let ty_params' = List.fold_left aux state.ty_params params in
   { state with ty_params = ty_params' }
 
 let desugar_ty_def ~loc state = function
@@ -270,24 +270,27 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
       let new_names = List.map def_name defs in
       let state' = add_fresh_ty_names ~loc state new_names in
       let aux (params, _, ty_def) (_, ty_name') (state', defs) =
-        let params' = List.map (fun a -> (a, Untyped.TyParam.fresh a)) params in
-        let state'' = add_fresh_ty_params state' params' in
+        let state'' = add_fresh_ty_params state' params in
         let state''', ty_def' = desugar_ty_def ~loc state'' ty_def in
-        (state''', (List.map snd params', ty_name', ty_def') :: defs)
+        ( state''',
+          (List.map (lookup_ty_param ~loc state'') params, ty_name', ty_def')
+          :: defs )
       in
       let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
       (state'', Untyped.TyDef defs')
-  | Sugared.TopLet (_ps, x, term) ->
+  | Sugared.TopLet (params, x, term) ->
       let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state (StringMap.singleton x x') in
-      let expr = desugar_pure_expression state' term in
-      (state', Untyped.TopLet (x', expr))
+      let state'' = add_fresh_ty_params state' params in
+      let expr = desugar_pure_expression state'' term in
+      (state'', Untyped.TopLet (x', expr))
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
-  | Sugared.TopLetRec (_ps, f, term) ->
-      let state', f, expr = desugar_let_rec_def state (f, term) in
-      (state', Untyped.TopLet (f, expr))
+  | Sugared.TopLetRec (params, f, term) ->
+      let state' = add_fresh_ty_params state params in
+      let state'', f, expr = desugar_let_rec_def state' (f, term) in
+      (state'', Untyped.TopLet (f, expr))
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in
