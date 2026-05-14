@@ -4,7 +4,7 @@
 %}
 
 %token LPAREN RPAREN LBRACK RBRACK
-%token COLON COMMA SEMI EQUAL CONS
+%token COLON COMMA SEMI DOT EQUAL CONS
 %token BEGIN END
 %token <string> LNAME
 %token UNDERSCORE AS
@@ -59,12 +59,16 @@ command: mark_position(plain_command) { $1 }
 plain_command:
   | TYPE defs = separated_nonempty_list(AND, ty_def)
     { TyDef defs }
-  | LET x = ident t = lambdas0(EQUAL)
-    { TopLet (x, t) }
-  | LET REC def = let_rec_def
-    { let (f, t) = def in TopLetRec (f, t) }
+  | LET ps = quantified_params x = ident t = lambdas0(EQUAL)
+    { ignore ps; TopLet (x, t) }
+  | LET REC ps = quantified_params def = let_rec_def
+    { ignore ps; let (f, t) = def in TopLetRec (f, t) }
   | RUN trm = term
     { TopDo trm }
+
+quantified_params:
+  | ps = list(terminated(PARAM, DOT))
+    { ps }
 
 payload:
   | trm = term EOF
