@@ -277,7 +277,7 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
       in
       let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
       (state'', Untyped.TyDef defs')
-  | Sugared.TopLet (x, term) ->
+  | Sugared.TopLet (_ps, x, term) ->
       let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state (StringMap.singleton x x') in
       let expr = desugar_pure_expression state' term in
@@ -285,7 +285,7 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
-  | Sugared.TopLetRec (f, term) ->
+  | Sugared.TopLetRec (_ps, f, term) ->
       let state', f, expr = desugar_let_rec_def state (f, term) in
       (state', Untyped.TopLet (f, expr))
 

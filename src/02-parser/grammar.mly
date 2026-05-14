@@ -60,9 +60,9 @@ plain_command:
   | TYPE defs = separated_nonempty_list(AND, ty_def)
     { TyDef defs }
   | LET ps = quantified_params x = ident t = lambdas0(EQUAL)
-    { ignore ps; TopLet (x, t) }
+    { TopLet (ps, x, t) }
   | LET REC ps = quantified_params def = let_rec_def
-    { ignore ps; let (f, t) = def in TopLetRec (f, t) }
+    { let (f, t) = def in TopLetRec (ps, f, t) }
   | RUN trm = term
     { TopDo trm }
 

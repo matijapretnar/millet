@@ -67,8 +67,10 @@ type ty_def =
 type command = plain_command annotated
 
 and plain_command =
-  | TyDef of (ty_param list * ty_name * ty_def) list
+  | TyDef of (params * ty_name * ty_def) list
       (** [type ('a...1) t1 = def1 and ... and ('a...n) tn = defn] *)
-  | TopLet of variable * term  (** [let x = t] *)
-  | TopLetRec of variable * term  (** [let rec f = t] *)
+  | TopLet of params * variable * term  (** [let 'a. 'b. x = t] *)
+  | TopLetRec of params * variable * term  (** [let rec 'a. 'b.f = t] *)
   | TopDo of term  (** [do t] *)
+
+and params = ty_param list
