@@ -55,6 +55,7 @@ let float_float_to_float f =
 
 let rec comparable_expression = function
   | Ast.Var _ -> true
+  | Ast.TopVar _ -> true
   | Const _ -> true
   | Annotated (e, _) -> comparable_expression e
   | Tuple es -> List.for_all comparable_expression es

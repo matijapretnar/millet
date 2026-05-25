@@ -6,14 +6,14 @@ module type S = sig
   val initial_load_state : load_state
 
   val load_primitive :
-    load_state -> Ast.variable -> Language.Primitives.primitive -> load_state
+    load_state -> Ast.top_var -> Language.Primitives.primitive -> load_state
 
   val load_ty_def :
     load_state ->
     (Ast.ty_param list * Ast.ty_name * Ast.ty_def) list ->
     load_state
 
-  val load_top_let : load_state -> Ast.variable -> Ast.expression -> load_state
+  val load_top_let : load_state -> Ast.top_var -> Ast.expression -> load_state
   val load_top_do : load_state -> Ast.computation -> load_state
 
   type run_state

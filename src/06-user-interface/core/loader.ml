@@ -9,7 +9,7 @@ module Loader (Backend : Backend.S) = struct
   }
 
   let load_primitive state prim =
-    let x = Ast.Variable.fresh (Language.Primitives.primitive_name prim) in
+    let x = Ast.TopVar.fresh (Language.Primitives.primitive_name prim) in
     let desugarer_state' = Desugarer.load_primitive state.desugarer x prim in
     let typechecker_state' =
       Typechecker.load_primitive state.typechecker x prim

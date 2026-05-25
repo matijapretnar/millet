@@ -1,15 +1,18 @@
 open Utils
 module Ast = Language.Ast
 module Const = Language.Const
+module IntMap = Map.Make (Int)
 
 type state = {
-  variables : (Ast.ty_param list * Ast.ty) Ast.VariableMap.t;
+  top_vars : (Ast.ty_param list * Ast.ty) Ast.TopVarMap.t;
+  local_vars : Ast.ty IntMap.t;
   type_definitions : (Ast.ty_param list * Ast.ty_def) Ast.TyNameMap.t;
 }
 
 let initial_state =
   {
-    variables = Ast.VariableMap.empty;
+    top_vars = Ast.TopVarMap.empty;
+    local_vars = IntMap.empty;
     type_definitions =
       (Ast.TyNameMap.empty
       |> Ast.TyNameMap.add Ast.bool_ty_name
@@ -65,10 +68,10 @@ let fresh_ty () =
   let a = Ast.TyParam.fresh "ty" in
   Ast.TyParam a
 
-let extend_variables state vars =
+let extend_local_vars state vars =
   List.fold_left
-    (fun state (x, ty) ->
-      { state with variables = Ast.VariableMap.add x ([], ty) state.variables })
+    (fun state (uid, ty) ->
+      { state with local_vars = IntMap.add uid ty state.local_vars })
     state vars
 
 let refreshing_subst params =
@@ -96,12 +99,12 @@ let infer_variant state lbl =
   (ty', Ast.TyApply (ty_name, args))
 
 let rec infer_pattern state = function
-  | Ast.PVar x ->
+  | Ast.PVar ->
       let ty = fresh_ty () in
-      (ty, [ (x, ty) ], [])
-  | Ast.PAs (pat, x) ->
+      (ty, [ ty ], [])
+  | Ast.PAs pat ->
       let ty, vars, eqs = infer_pattern state pat in
-      (ty, (x, ty) :: vars, eqs)
+      (ty, vars @ [ ty ], eqs)
   | Ast.PAnnotated (pat, ty) ->
       let ty', vars, eqs = infer_pattern state pat in
       (ty, vars, (ty, ty') :: eqs)
@@ -127,8 +130,13 @@ let rec infer_pattern state = function
           Error.typing "Variant optional argument mismatch")
 
 let rec infer_expression state = function
-  | Ast.Var x ->
-      let params, ty = Ast.VariableMap.find x state.variables in
+  | Ast.Var x -> (
+      let uid = Bindlib.uid_of x in
+      match IntMap.find_opt uid state.local_vars with
+      | Some ty -> (ty, [])
+      | None -> Error.typing "Unknown local variable %s" (Bindlib.name_of x))
+  | Ast.TopVar x ->
+      let params, ty = Ast.TopVarMap.find x state.top_vars in
       let subst = refreshing_subst params in
       (Ast.substitute_ty subst ty, [])
   | Ast.Const c -> (Ast.TyConst (Const.infer_ty c), [])
@@ -145,12 +153,14 @@ let rec infer_expression state = function
   | Ast.Lambda abs ->
       let ty, ty', eqs = infer_abstraction state abs in
       (Ast.TyArrow (ty, ty'), eqs)
-  | Ast.RecLambda (f, abs) ->
-      let f_ty = fresh_ty () in
-      let state' = extend_variables state [ (f, f_ty) ] in
-      let ty, ty', eqs = infer_abstraction state' abs in
-      let out_ty = Ast.TyArrow (ty, ty') in
-      (out_ty, (f_ty, out_ty) :: eqs)
+  | Ast.RecLambda binder ->
+      let f, abstraction = Bindlib.unbind binder in
+      let arg_ty = fresh_ty () in
+      let result_ty = fresh_ty () in
+      let f_ty = Ast.TyArrow (arg_ty, result_ty) in
+      let state' = extend_local_vars state [ (Bindlib.uid_of f, f_ty) ] in
+      let arg_ty', result_ty', eqs = infer_abstraction state' abstraction in
+      (f_ty, (Ast.TyArrow (arg_ty', result_ty'), f_ty) :: eqs)
   | Ast.Variant (lbl, expr) -> (
       let ty_in, ty_out = infer_variant state lbl in
       match (ty_in, expr) with
@@ -165,9 +175,9 @@ and infer_computation state = function
   | Ast.Return expr ->
       let ty, eqs = infer_expression state expr in
       (ty, eqs)
-  | Ast.Do (comp1, comp2) ->
+  | Ast.Do (comp1, abs) ->
       let ty1, eqs1 = infer_computation state comp1 in
-      let ty1', ty2, eqs2 = infer_abstraction state comp2 in
+      let ty1', ty2, eqs2 = infer_abstraction state abs in
       (ty2, ((ty1, ty1') :: eqs1) @ eqs2)
   | Ast.Apply (e1, e2) ->
       let t1, eqs1 = infer_expression state e1
@@ -182,9 +192,16 @@ and infer_computation state = function
       in
       (ty2, List.fold_left fold eqs cases)
 
-and infer_abstraction state (pat, comp) =
-  let ty, vars, eqs = infer_pattern state pat in
-  let state' = extend_variables state vars in
+and infer_abstraction state abstraction =
+  let pat, binder = abstraction in
+  let vars, comp = Bindlib.unmbind binder in
+  let ty, var_tys, eqs = infer_pattern state pat in
+  let local_vars =
+    List.map2
+      (fun var ty -> (Bindlib.uid_of var, ty))
+      (Array.to_list vars) var_tys
+  in
+  let state' = extend_local_vars state local_vars in
   let ty', eqs' = infer_computation state' comp in
   (ty, ty', eqs @ eqs')
 
@@ -221,7 +238,7 @@ let rec unify state = function
   | [] -> Ast.TyParamMap.empty
   | (t1, t2) :: eqs when t1 = t2 -> unify state eqs
   | (Ast.TyApply (ty_name1, args1), Ast.TyApply (ty_name2, args2)) :: eqs
-    when ty_name1 = ty_name2 ->
+    when ty_name1 = ty_name2 && List.length args1 = List.length args2 ->
       unify state (List.combine args1 args2 @ eqs)
   | (Ast.TyApply (ty_name, args), ty) :: eqs
     when is_transparent_type state ty_name ->
@@ -249,11 +266,10 @@ let rec unify state = function
 let infer state e =
   let t, eqs = infer_computation state e in
   let sbst = unify state eqs in
-  let t' = Ast.substitute_ty sbst t in
-  t'
+  Ast.substitute_ty sbst t
 
 let add_external_function x ty_sch state =
-  { state with variables = Ast.VariableMap.add x ty_sch state.variables }
+  { state with top_vars = Ast.TopVarMap.add x ty_sch state.top_vars }
 
 let add_top_definition state x expr =
   let ty, eqs = infer_expression state expr in
