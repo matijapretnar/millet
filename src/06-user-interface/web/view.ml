@@ -58,8 +58,9 @@ let view_editor (model : Model.edit_model) =
             int_prop "rows"
               (max 10
                  (String.split_on_char '\n' model.unparsed_code |> List.length));
+            str_prop "value" model.unparsed_code;
           ]
-        [ text model.unparsed_code ];
+        [];
     ]
 
 (* let _view (model : Model.model) =
