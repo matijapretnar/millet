@@ -261,17 +261,21 @@ let add_fresh_ty_params state params =
   let ty_params' = List.fold_left aux state.ty_params params in
   { state with ty_params = ty_params' }
 
-let desugar_ty_def ~loc state = function
-  | Sugared.TyInline ty -> (state, Untyped.TyInline (desugar_ty state ty))
+let desugar_ty_def ~loc (labels, state) = function
+  (* We track labels separately since they will be used in the rest of the program *)
+  | Sugared.TyInline ty -> (labels, Untyped.TyInline (desugar_ty state ty))
   | Sugared.TySum variants ->
-      let aux state (label, ty) =
+      let aux (state, labels) (label, ty) =
         let label' = Untyped.Label.fresh label in
         let ty' = Option.map (desugar_ty state) ty in
         let state' = add_label ~loc state label label' in
-        (state', (label', ty'))
+        ((state', (label, label') :: labels), (label', ty'))
       in
-      let state', variants' = List.fold_map aux state variants in
-      (state', Untyped.TySum variants')
+      (* at the end, we ignore _state' since it is polluted with type params *)
+      let (_state', labels'), variants' =
+        List.fold_map aux (state, labels) variants
+      in
+      (labels', Untyped.TySum variants')
 
 let desugar_command state { Sugared.it = cmd; at = loc } =
   match cmd with
@@ -280,30 +284,45 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
         let ty_name' = Untyped.TyName.fresh ty_name in
         (ty_name, ty_name')
       in
+      (* TODO: the naming state/state'/… is confusing because it is
+         not clear what parts need to be global (type names and
+         labels) and which local (type parameters) *)
       let new_names = List.map def_name defs in
       let state' = add_fresh_ty_names ~loc state new_names in
-      let aux (params, _, ty_def) (_, ty_name') (state', defs) =
+      let aux (params, _, ty_def) (_, ty_name') (labels, state', defs) =
         let state'' = add_fresh_ty_params state' params in
-        let state''', ty_def' = desugar_ty_def ~loc state'' ty_def in
-        ( state''',
+        let labels', ty_def' = desugar_ty_def ~loc (labels, state'') ty_def in
+        ( labels',
+          state'',
           (List.map (lookup_ty_param ~loc state'') params, ty_name', ty_def')
           :: defs )
       in
-      let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
+      let labels, _, defs' =
+        List.fold_right2 aux defs new_names ([], state', [])
+      in
+      let state'' =
+        List.fold_left
+          (fun s (lbl, lbl') -> add_label ~loc s lbl lbl')
+          state' labels
+      in
       (state'', Untyped.TyDef defs')
   | Sugared.TopLet (params, x, term) ->
       let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state (StringMap.singleton x x') in
       let state'' = add_fresh_ty_params state' params in
       let expr = desugar_pure_expression state'' term in
-      (state'', Untyped.TopLet (x', expr))
+      (* we ignore state'' in the end since it is polluted with
+      type params, which we needed only to desugar expr *)
+      (state', Untyped.TopLet (x', expr))
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
   | Sugared.TopLetRec (params, f, term) ->
       let state' = add_fresh_ty_params state params in
-      let state'', f, expr = desugar_let_rec_def state' (f, term) in
-      (state'', Untyped.TopLet (f, expr))
+      let _state'', f', expr = desugar_let_rec_def state' (f, term) in
+      (* we ignore _state'' since it is polluted with type params *)
+      let state''' = add_fresh_variables state (StringMap.singleton f f') in
+      (state''', Untyped.TopLet (f', expr))
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in
