@@ -75,10 +75,8 @@
   return (4, "foo")
   return (1::u, "foo"::u)
   return ([]::v, (2::[])::v)
-  return (fun x ↦ let h = return (fun t ↦ return (fun u ↦ return u)) in
-                  let b = h x in b x)
-  return (fun x ↦ let h = return (fun t ↦ return (fun u ↦ return t)) in
-                  let b = h x in b x)
+  return weird1
+  return weird2
   ======================================================================
   polymorphism_id_id.mlt
   ======================================================================

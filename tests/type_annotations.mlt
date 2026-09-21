@@ -9,16 +9,16 @@ run f true
 
 let f (x: int) : (int * int) = (x, x)
 
-let g (x: 'a) = x
-let g (x: 'a) : 'a = 12
-let g (x: 'a) (y: 'a) : 'a = y
+let 'a. g (x: 'a) = x
+let 'a. g (x: 'a) : 'a = 12
+let 'a. g (x: 'a) (y: 'a) : 'a = y
 
 (* Parsing of the following two expressions fails.
     Reported error "Syntax error ... Unknown name --b--"
-let g x : 'a*'b = (x, x)
-let g (x: 'a) (y: 'b) : 'a*'b = (x, y) *)
+let 'a. g x : 'a * 'b = (x, x)
+let 'a. g (x: 'a) (y: 'b) : 'a*'b = (x, y) *)
 
-let g (x : 'a) : 'a*'a = (x, x)
+let 'a. g (x : 'a) : 'a*'a = (x, x)
 
 let f : (int -> int) = function
   | (x: int) -> x
@@ -26,12 +26,12 @@ let f : (int -> int) = function
 (* variants *)
 type ('a,'b) cow = Small of 'a | Large of 'b
 
-let f (x : ('a, 'b) cow) : int =
+let 'a. 'b. f (x : ('a, 'b) cow) : int =
   match x with
   | Small x -> x
   | Large x -> 100
 
-let f (x: ('a, 'b) cow) : int =
+let 'a. 'b. f (x: ('a, 'b) cow) : int =
   match x with
   | Small s -> 100
   | Large (l :int) -> 100

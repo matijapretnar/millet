@@ -22,8 +22,23 @@ let 'a. v : 'a list list = [[]]
 
 run ([] :: v, [2] :: v)
 
+let 'a. weird1 (x: 'a) : 'a =
+  let h (t: 'a) (u: 'a) = u in
+  h x x
+run weird1
+
+let 'a. weird2 (x: 'a) : 'a =
+  let h (t: 'a) (u: 'a) = t in
+  h x x
+run weird2
+
+(*
+ * The weird1 and weird2 functions are replacement tests for this behavior
+ * since quantified parameters cannot be introduced to lambdas in the run context.
+*)
+(*
 run (fun (x: 'a) -> let h (t: 'b) (u: 'c) = u in h x x)
 
 run (fun (x: 'a) -> let h (t: 'b) (u: 'c) = t in h x x)
-
+*)
 let rec 'a. 'b. u (x: 'a) : 'b = u x

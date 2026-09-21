@@ -28,7 +28,7 @@ type ('a,'b) bull = {small : 'a; large : 'b};;
 (* Polymorphism *)
 
 let 'a. f: ('a -> 'a) = (fun x -> x)
-run ((fun x -> x): ('a -> 'a)) ((fun y -> y): ('b -> 'b))
+run (fun (x: int -> int) -> x) (fun y -> y)
 let 'a. f: ('a -> ('a * 'a)) = (fun x -> (x, x))
 let 'a. f: (('a -> 'a) * 'a list) = ((fun x -> x), [])
 
