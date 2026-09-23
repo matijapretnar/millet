@@ -5,11 +5,15 @@ module Const = Language.Const
 type state = {
   variables : (Ast.ty_param list * Ast.ty) Ast.VariableMap.t;
   type_definitions : (Ast.ty_param list * Ast.ty_def) Ast.TyNameMap.t;
+  rigid_params : Ast.TyParamSet.t;
+      (** Params of the checked top-level definition; unification cannot bind
+          them. All other params are unification variables. *)
 }
 
 let initial_state =
   {
     variables = Ast.VariableMap.empty;
+    rigid_params = Ast.TyParamSet.empty;
     type_definitions =
       (Ast.TyNameMap.empty
       |> Ast.TyNameMap.add Ast.bool_ty_name
@@ -111,15 +115,20 @@ let unfold state ty_name args =
       in
       Ast.substitute_ty subst ty
 
+let bind subst a t =
+  if occurs subst a t then
+    Error.typing
+      "This expression has a type that would require an infinite type"
+  else subst := Ast.TyParamMap.add a t !subst
+
 let rec unify state subst t1 t2 =
   let t1 = resolve subst t1 and t2 = resolve subst t2 in
   match (t1, t2) with
   | t1, t2 when t1 = t2 -> ()
-  | Ast.TyParam a, t | t, Ast.TyParam a ->
-      if occurs subst a t then
-        Error.typing
-          "This expression has a type that would require an infinite type"
-      else subst := Ast.TyParamMap.add a t !subst
+  | Ast.TyParam a, t when not (Ast.TyParamSet.mem a state.rigid_params) ->
+      bind subst a t
+  | t, Ast.TyParam a when not (Ast.TyParamSet.mem a state.rigid_params) ->
+      bind subst a t
   | Ast.TyApply (ty_name1, args1), Ast.TyApply (ty_name2, args2)
     when ty_name1 = ty_name2 ->
       List.iter2 (unify state subst) args1 args2
@@ -382,12 +391,10 @@ let infer state comp =
 let add_external_function x ty_sch state =
   { state with variables = Ast.VariableMap.add x ty_sch state.variables }
 
-let add_top_definition state x expr =
+let add_top_definition state x ((params, ty) as ty_sch) expr =
   let subst = ref Ast.TyParamMap.empty in
-  let ty = infer_expression state subst expr in
-  let ty' = resolve subst ty in
-  let free_vars = Ast.free_vars ty' |> Ast.TyParamSet.elements in
-  let ty_sch = (free_vars, ty') in
+  let state' = { state with rigid_params = Ast.TyParamSet.of_list params } in
+  check_expression state' subst expr ty;
   add_external_function x ty_sch state
 
 let add_type_definitions state ty_defs =

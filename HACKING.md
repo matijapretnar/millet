@@ -90,9 +90,9 @@ The `ty` type represents Millet types:
 | Surface | Core AST | Effect |
 | --- | --- | --- |
 | `type t = ...` | `TyDef [...]` | registers a type definition |
-| `let f (p1 : ty1) ... (pn : tyn) : ty = e` | `TopLet (f, expr)` | binds a value in the global environment; `n` may be 0 |
+| `let f (p1 : ty1) ... (pn : tyn) : ty = e` | `TopLet (f, (params, ty1 -> ... -> tyn -> ty), expr)` | binds a value with its declared type scheme in the global environment; `params` are the free type params of the declared type, and `n` may be 0 |
 | `run t` | `TopDo comp` | enqueues a computation for evaluation |
-| `let rec f (p1 : ty1) ... (pn : tyn) : ty = e` | `TopLet (f, RecLambda ...)` | desugared to `TopLet` before reaching the core |
+| `let rec f (p1 : ty1) ... (pn : tyn) : ty = e` | `TopLet (f, (params, ty1 -> ... -> tyn -> ty), RecLambda ...)` | desugared to `TopLet` before reaching the core |
 
 ## The Symbol system
 
@@ -117,7 +117,9 @@ The **desugarer** (`src/03-desugarer/desugarer.ml`) is the sole boundary between
 
 `src/04-typechecker/typechecker.ml` implements a bidirectional typechecker: `infer_*` synthesises a type, `check_*` checks against an expected one, and the two meet at subsumption, where `unify` extends a substitution `ty TyParamMap.t ref`.
 
-- Every top-level definition must declare its type: all its arguments and its result are annotated. The desugarer reads this header and brings its free type params into scope. Annotations in the body can refer to them, but not introduce new ones. The typechecker generalises the inferred type of the definition.
+- Every top-level definition must declare its type: all its arguments and its result are annotated. The desugarer reads this header, quantifies over its free type params, and emits `TopLet (x, (params, ty), expr)`. The typechecker checks `expr` against `ty` and binds `x` to the declared scheme; it does not generalise.
+- The quantified params are rigid: `unify` does not bind a param in `state.rigid_params`, so `let f (x : 'a) : 'a = x + 1` is rejected. Annotations in the body can refer to the params of the header, but not introduce new ones.
+- All other `TyParam`s are unification variables, created by `fresh_ty`. Both kinds share the `TyParam` constructor for now; after the move to bindlib, unification variables will get their own constructor.
 - `TyTuple []` is the unit type — there is no separate unit constructor.
 - Type schemes `(ty_param list * ty)` are stored in the variable environment. `refreshing_subst` instantiates them with fresh unification variables at each use site.
 - Inner `let`s are not generalised, and a recursive function is monomorphic in its own body.

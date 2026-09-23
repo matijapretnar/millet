@@ -294,9 +294,12 @@ let rec free_ty_params { Sugared.it = ty; _ } =
 (* The type params of a top-level definition are the free params of its
    declared type. The returned state holds them, so that annotations in the
    body refer to the same params. *)
-let add_header_ty_params state x term =
+let desugar_ty_scheme state x term =
   let ty = header_ty x term in
-  add_fresh_ty_params state (List.sort_uniq String.compare (free_ty_params ty))
+  let params = List.sort_uniq String.compare (free_ty_params ty) in
+  let state' = add_fresh_ty_params state params in
+  let params' = List.map (lookup_ty_param ~loc:ty.at state') params in
+  (state', (params', desugar_ty state' ty))
 
 let desugar_ty_def ~loc (labels, state) = function
   (* We track labels separately since they will be used in the rest of the program *)
@@ -346,20 +349,20 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
   | Sugared.TopLet (x, term) ->
       let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state (StringMap.singleton x x') in
-      let state'' = add_header_ty_params state' x term in
+      let state'', ty_sch = desugar_ty_scheme state' x term in
       let expr = desugar_pure_expression state'' term in
       (* we ignore state'' in the end since it is polluted with
       type params, which we needed only to desugar expr *)
-      (state', Untyped.TopLet (x', expr))
+      (state', Untyped.TopLet (x', ty_sch, expr))
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
   | Sugared.TopLetRec (f, term) ->
-      let state' = add_header_ty_params state f term in
+      let state', ty_sch = desugar_ty_scheme state f term in
       let _state'', f', expr = desugar_let_rec_def state' (f, term) in
       (* we ignore _state'' since it is polluted with type params *)
       let state''' = add_fresh_variables state (StringMap.singleton f f') in
-      (state''', Untyped.TopLet (f', expr))
+      (state''', Untyped.TopLet (f', ty_sch, expr))
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in
