@@ -61,7 +61,7 @@ run insertion_sort [5; 3; 8; 1; 9; 2; 4; 7; 6]
 
 (* ===== Association lists ===== *)
 
-let capitals = [("Scotland", "Edinburgh"); ("Slovenia", "Ljubljana")]
+let capitals : (string * string) list = [("Scotland", "Edinburgh"); ("Slovenia", "Ljubljana")]
 
 run assoc "Slovenia" capitals
 run assoc "Spain" capitals

@@ -33,7 +33,7 @@ A web interface is also available at `web/index.html` (or online at <https://mat
 Millet is a pure functional language in the ML family. It has:
 
 - **Algebraic data types** — `type`, sum types with `|`, pattern matching with `match`/`with`
-- **Polymorphic type inference** — Hindley-Milner, no annotations required
+- **Parametric polymorphism** — bidirectional type checking; top-level definitions declare their types, and their type parameters are implicitly quantified
 - **Recursive functions** — `let rec`
 - **Lists** — built-in with `[]`, `::`, and pattern matching
 - **Tuples** — `(a, b, c)`
@@ -69,7 +69,7 @@ Stage          | Directory                      | Description
 Language       | `src/01-language/`             | Core AST, constants, and primitive operations
 Parser         | `src/02-parser/`               | Source text → sugared AST (string names, locations)
 Desugarer      | `src/03-desugarer/`            | Sugared AST → core AST (symbolic names, no locations)
-Typechecker    | `src/04-typechecker/`          | Hindley-Milner inference and checking
+Typechecker    | `src/04-typechecker/`          | Bidirectional type checking
 Backends       | `src/05-backends/`             | Execution backends (small-step interpreter, compilation, …)
 User interface | `src/06-user-interface/`       | CLI and web drivers, standard library
 Utilities      | `src/00-utils/`                | Shared utilities (errors, locations, symbols, printing)

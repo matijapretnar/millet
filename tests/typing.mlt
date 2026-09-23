@@ -1,19 +1,19 @@
 (* Basic types *)
-let b = 3
-let b = true
-let b = "foo"
-let b = ()
-let b = 4.2
+let b : int = 3
+let b : bool = true
+let b : string = "foo"
+let b : unit = ()
+let b : float = 4.2
 
 
 (* Tuples *)
-let t = (3,4)
-let t = ([], "foo")
+let t : int * int = (3,4)
+let t : 'a list * string = ([], "foo")
 
 (* variants *)
 type ('a,'b) cow = Small of 'a | Large of 'b
-let v = Small "brown"
-let v = Large "white"
+let v : (string, 'b) cow = Small "brown"
+let v : ('a, string) cow = Large "white"
 let v: ((int, string list) cow -> (string list, int) cow) = (fun cow -> match cow with Small k -> Large (k + 3) | Large s -> Small ("foo"::s))
 
 (* records *)
@@ -27,16 +27,16 @@ type ('a,'b) bull = {small : 'a; large : 'b};;
 
 (* Polymorphism *)
 
-let 'a. f: ('a -> 'a) = (fun x -> x)
-run ((fun x -> x): ('a -> 'a)) ((fun y -> y): ('b -> 'b))
-let 'a. f: ('a -> ('a * 'a)) = (fun x -> (x, x))
-let 'a. f: (('a -> 'a) * 'a list) = ((fun x -> x), [])
+let f: ('a -> 'a) = (fun x -> x)
+run ((fun x -> x): ((int -> int) -> int -> int)) ((fun y -> y): (int -> int))
+let f: ('a -> ('a * 'a)) = (fun x -> (x, x))
+let f: (('a -> 'a) * 'a list) = ((fun x -> x), [])
 
 (* let f = ((fun x -> x), (fun x -> x) (fun y -> y)) *)
 
-let 'a. 'b. f: ('a -> 'b -> 'a) = (fun x y -> x)
-let 'a. v: 'a list list list = [[[]]]
-let 'a. 'b. f: ('a -> 'b -> 'a) = (fun x y -> (fun (a: 'a) -> a) x)
+let f: ('a -> 'b -> 'a) = (fun x y -> x)
+let v: 'a list list list = [[[]]]
+let f: ('a -> 'b -> 'a) = (fun x y -> (fun (a: 'a) -> a) x)
 
-let rec 'a. h (x: 'a) : 'a = x
+let rec h (x: 'a) : 'a = x
 run h

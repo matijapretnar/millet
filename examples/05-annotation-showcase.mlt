@@ -46,7 +46,7 @@ let rec largest (shapes: shape list) : shape option =
       | None -> Some s
       | Some s' -> if area s >= area s' then Some s else Some s')
 
-let 'a. id (x: 'a) : 'a = x
+let id (x: 'a) : 'a = x
 
 let catalog : shape list =
   [ Circle 2.0; Rectangle (3.0, 4.0); Square 5.0; Circle 1.0 ]

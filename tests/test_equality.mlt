@@ -15,4 +15,4 @@ run [1;2;3] = [1;2;3]
         ("nested", x = x, x = y, y = y))
 *)
 
-let 'a. 'b. f (x: 'a) (y: 'b) = x = y
+let f (x: 'a) (y: 'a) : bool = x = y

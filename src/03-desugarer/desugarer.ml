@@ -261,6 +261,43 @@ let add_fresh_ty_params state params =
   let ty_params' = List.fold_left aux state.ty_params params in
   { state with ty_params = ty_params' }
 
+let pattern_annotation { Sugared.it = pat; _ } =
+  match pat with Sugared.PAnnotated (_, ty) -> Some ty | _ -> None
+
+(* The header of a top-level definition consists of its arguments and its
+   result. All of them must be annotated, and together the annotations give the
+   declared type of the definition. *)
+let rec header_ty x ({ Sugared.it = term; at = loc } : Sugared.term) =
+  match term with
+  | Sugared.Annotated (_, ty) -> ty
+  | Sugared.Lambda (pat, term') -> (
+      match pattern_annotation pat with
+      | Some ty1 ->
+          let ty2 = header_ty x term' in
+          { Sugared.it = Sugared.TyArrow (ty1, ty2); at = loc }
+      | None ->
+          Error.syntax ~loc:pat.at
+            "An argument of the top-level definition %s needs a type annotation"
+            x)
+  | _ ->
+      Error.syntax ~loc
+        "The result of the top-level definition %s needs a type annotation" x
+
+let rec free_ty_params { Sugared.it = ty; _ } =
+  match ty with
+  | Sugared.TyParam p -> [ p ]
+  | Sugared.TyApply (_, tys) | Sugared.TyTuple tys ->
+      List.concat_map free_ty_params tys
+  | Sugared.TyArrow (ty1, ty2) -> free_ty_params ty1 @ free_ty_params ty2
+  | Sugared.TyConst _ -> []
+
+(* The type params of a top-level definition are the free params of its
+   declared type. The returned state holds them, so that annotations in the
+   body refer to the same params. *)
+let add_header_ty_params state x term =
+  let ty = header_ty x term in
+  add_fresh_ty_params state (List.sort_uniq String.compare (free_ty_params ty))
+
 let desugar_ty_def ~loc (labels, state) = function
   (* We track labels separately since they will be used in the rest of the program *)
   | Sugared.TyInline ty -> (labels, Untyped.TyInline (desugar_ty state ty))
@@ -306,10 +343,10 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
           state' labels
       in
       (state'', Untyped.TyDef defs')
-  | Sugared.TopLet (params, x, term) ->
+  | Sugared.TopLet (x, term) ->
       let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state (StringMap.singleton x x') in
-      let state'' = add_fresh_ty_params state' params in
+      let state'' = add_header_ty_params state' x term in
       let expr = desugar_pure_expression state'' term in
       (* we ignore state'' in the end since it is polluted with
       type params, which we needed only to desugar expr *)
@@ -317,8 +354,8 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
-  | Sugared.TopLetRec (params, f, term) ->
-      let state' = add_fresh_ty_params state params in
+  | Sugared.TopLetRec (f, term) ->
+      let state' = add_header_ty_params state f term in
       let _state'', f', expr = desugar_let_rec_def state' (f, term) in
       (* we ignore _state'' since it is polluted with type params *)
       let state''' = add_fresh_variables state (StringMap.singleton f f') in

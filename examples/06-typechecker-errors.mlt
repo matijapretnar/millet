@@ -27,10 +27,7 @@ type shape =
    Error: "Cannot infer the type of a recursive function (bound as
    loop); its argument pattern x needs a type annotation ..."
    ---------------------------------------------------------------- *)
-(*
-let rec loop x = loop x
-run loop 5
-*)
+(* run (let rec loop x = loop x in loop 5) *)
 
 
 (* ----------------------------------------------------------------
@@ -88,7 +85,7 @@ run loop 5
    Error: "This expression has a type that would require an
    infinite type"
    ---------------------------------------------------------------- *)
-(* let 'a. broken (x: 'a) : 'a = (x, x) *)
+(* let broken (x: 'a) : 'a = (x, x) *)
 
 
 (* ----------------------------------------------------------------

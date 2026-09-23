@@ -207,9 +207,8 @@ let rec print_pattern pat ppf =
   | Ast.PVariant (lbl, Some pat) ->
       Format.fprintf ppf "%t %t" (Ast.Label.print lbl) (print_pattern pat)
 
-let rec pattern_annotation = function
+let pattern_annotation = function
   | Ast.PAnnotated (_, ty) -> Some ty
-  | Ast.PAs (pat, _) -> pattern_annotation pat
   | _ -> None
 
 let rec synthesize_ty = function

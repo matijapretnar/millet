@@ -1,1 +1,1 @@
-run ((fun x -> x): ('a -> 'a)) < ((fun x -> 2 * x): (int -> int))
+run ((fun x -> x): (int -> int)) < ((fun x -> 2 * x): (int -> int))
