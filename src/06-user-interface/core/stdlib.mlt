@@ -1,9 +1,9 @@
-let 'a. ( = ) (x: 'a) (y: 'a) : bool = __compare_eq__ (x, y)
-let 'a. ( < ) (x: 'a) (y: 'a) : bool = __compare_lt__ (x, y)
-let 'a. ( > ) (x: 'a) (y: 'a) : bool = __compare_gt__ (x, y)
-let 'a. ( <= ) (x: 'a) (y: 'a) : bool = __compare_le__ (x, y)
-let 'a. ( >= ) (x: 'a) (y: 'a) : bool = __compare_ge__ (x, y)
-let 'a. ( <> ) (x: 'a) (y: 'a) : bool = __compare_ne__ (x, y)
+let ( = ) (x: 'a) (y: 'a) : bool = __compare_eq__ (x, y)
+let ( < ) (x: 'a) (y: 'a) : bool = __compare_lt__ (x, y)
+let ( > ) (x: 'a) (y: 'a) : bool = __compare_gt__ (x, y)
+let ( <= ) (x: 'a) (y: 'a) : bool = __compare_le__ (x, y)
+let ( >= ) (x: 'a) (y: 'a) : bool = __compare_ge__ (x, y)
+let ( <> ) (x: 'a) (y: 'a) : bool = __compare_ne__ (x, y)
 let ( + ) (x: int) (y: int) : int = __integer_add__ (x, y)
 let ( * ) (x: int) (y: int) : int = __integer_mul__ (x, y)
 let ( - ) (x: int) (y: int) : int = __integer_sub__ (x, y)
@@ -17,14 +17,14 @@ let ( /. ) (x: float) (y: float) : float = __float_div__ (x, y)
 let ( ** ) (x: float) (y: float) : float = __float_pow__ (x, y)
 let ( ~-. ) (x: float) : float = __float_neg__ x
 
-(* let 'a. absurd void : empty -> 'a = fun void -> (match void with) *)
+(* let absurd void : empty -> 'a = fun void -> (match void with) *)
 
 (* Booleans *)
 let not (x: bool) : bool = if x then false else true
 
 type 'a option = None | Some of 'a
 
-let rec 'a. 'b. assoc (x: 'a): ('a * 'b) list -> 'b option = function
+let rec assoc (x: 'a): ('a * 'b) list -> 'b option = function
   | [] -> None
   | (key, v) :: lst -> if x = key then Some v else assoc x lst
 
@@ -34,90 +34,90 @@ let rec range (m: int) (n: int) : int list  =
   else
     m :: range (m + 1) n
 
-let 'a. reverse (lst: 'a list): 'a list =
+let reverse (lst: 'a list): 'a list =
   let rec reverse_acc (acc: 'a list): 'a list -> 'a list = function
     | [] -> acc
     | x :: xs -> reverse_acc (x :: acc) xs
   in
   reverse_acc [] lst
 
-let rec 'a. 'b. map (f: 'a -> 'b): 'a list -> 'b list = function
+let rec map (f: 'a -> 'b): 'a list -> 'b list = function
   | [] -> []
   | x :: xs ->
     let y = f x in
     let ys = map f xs in
     y :: ys
 
-let 'a. hd: 'a list -> 'a = function
+let hd: 'a list -> 'a = function
   | x :: _ -> x
 
-let 'a. tl: 'a list -> 'a list = function
+let tl: 'a list -> 'a list = function
   | x :: xs -> xs
 
-let 'a. take (f: int -> 'a) (k: int): 'a list =
+let take (f: int -> 'a) (k: int): 'a list =
   let r = range 0 k in map f r
 
-let rec 'a. 'b. fold_left (f: 'b -> 'a -> 'b) (acc: 'b) : 'a list -> 'b = function
+let rec fold_left (f: 'b -> 'a -> 'b) (acc: 'b) : 'a list -> 'b = function
   | [] -> acc
   | y :: ys ->
     let acc' = f acc y in
     fold_left f acc' ys
 
-let rec 'a. 'b. fold_right (f: 'a -> 'b -> 'b) (xs: 'a list) (acc: 'b) : 'b =
+let rec fold_right (f: 'a -> 'b -> 'b) (xs: 'a list) (acc: 'b) : 'b =
   match xs with
     | [] -> acc
     | x :: xs ->
       let acc' = fold_right f xs acc in
       f x acc'
     
-let rec 'a. iter (f: 'a -> unit) : 'a list -> unit = function
+let rec iter (f: 'a -> unit) : 'a list -> unit = function
   | [] -> ()
   | x :: xs -> f x; iter f xs
 
-let rec 'a. forall (p: 'a -> bool) : 'a list -> bool = function
+let rec forall (p: 'a -> bool) : 'a list -> bool = function
   | [] -> true
   | x :: xs -> if p x then forall p xs else false
 
-let rec 'a. exists (p: 'a -> bool) : 'a list -> bool = function
+let rec exists (p: 'a -> bool) : 'a list -> bool = function
   | [] -> false
   | x :: xs -> if p x then true else exists p xs
 
-let 'a. mem (x: 'a) : 'a list -> bool = exists (fun x' -> x = x')
+let mem (x: 'a) : 'a list -> bool = exists (fun x' -> x = x')
 
-let rec 'a. filter (p: 'a -> bool) : 'a list -> 'a list = function
+let rec filter (p: 'a -> bool) : 'a list -> 'a list = function
   | [] -> []
   | x :: xs ->
     if p x then (x :: filter p xs) else filter p xs
 
-let 'a. complement (xs: 'a list) (ys: 'a list) : 'a list = filter (fun x -> not (mem x ys)) xs
-let 'a. intersection (xs: 'a list) (ys: 'a list) : 'a list = filter (fun x -> mem x ys) xs
-let rec 'a. 'b. zip (xs: 'a list) (ys: 'b list) : ('a * 'b) list =
+let complement (xs: 'a list) (ys: 'a list) : 'a list = filter (fun x -> not (mem x ys)) xs
+let intersection (xs: 'a list) (ys: 'a list) : 'a list = filter (fun x -> mem x ys) xs
+let rec zip (xs: 'a list) (ys: 'b list) : ('a * 'b) list =
   match (xs, ys) with
   | ([], []) -> []
   | (x :: xs, y :: ys) -> (x, y) :: (zip xs ys)
 
-let rec 'a. 'b. unzip : ('a * 'b) list -> ('a list * 'b list) = function
+let rec unzip : ('a * 'b) list -> ('a list * 'b list) = function
   | [] -> ([], [])
   | (x, y) :: xys ->
     let xs, ys = unzip xys in
     (x :: xs, y :: ys)
 
-let rec 'a. (@) (xs: 'a list) (ys: 'a list): 'a list =
+let rec (@) (xs: 'a list) (ys: 'a list): 'a list =
   match xs with
   | [] -> ys
   | x :: xs -> x :: (xs @ ys)
 
-let rec 'a. length : 'a list -> int = function
+let rec length : 'a list -> int = function
   | [] -> 0
   | x :: xs -> length xs + 1
 
-let rec 'a. nth (x::xs : 'a list) (n: int) : 'a =
+let rec nth (x::xs : 'a list) (n: int) : 'a =
   if n = 0 then x else nth xs (n - 1)
 
 (* Basic functions *)
 let abs (x: int) : int = if x < 0 then -x else x
-let 'a. min (x: 'a) (y: 'a) : 'a = if x < y then x else y
-let 'a. max (x: 'a) (y: 'a) : 'a = if x < y then y else x
+let min (x: 'a) (y: 'a) : 'a = if x < y then x else y
+let max (x: 'a) (y: 'a) : 'a = if x < y then y else x
 let rec gcd (m: int) (n: int) : int =
   match n with
   | 0 -> m
@@ -128,11 +128,11 @@ let rec lcm (m: int) (n: int) : int =
 
 let odd (x: int) : bool = (x mod 2) = 1
 let even (x: int) : bool = (x mod 2) = 0
-let 'a. id (x: 'a) : 'a = x
-let 'a. 'b. 'c. compose (f: 'b -> 'c) (g: 'a -> 'b) (x: 'a) : 'c = f (g x)
-let 'a. 'b. (|>) (x: 'a) (f: 'a -> 'b) : 'b = f x
-let 'a. ignore (_: 'a) : unit = ()
-let 'a. 'b. fst (x, _: 'a * 'b) : 'a = x
-let 'a. 'b. snd (_, y: 'a * 'b) : 'b = y
+let id (x: 'a) : 'a = x
+let compose (f: 'b -> 'c) (g: 'a -> 'b) (x: 'a) : 'c = f (g x)
+let (|>) (x: 'a) (f: 'a -> 'b) : 'b = f x
+let ignore (_: 'a) : unit = ()
+let fst (x, _: 'a * 'b) : 'a = x
+let snd (_, y: 'a * 'b) : 'b = y
   
-let 'a. return (x: 'a) : 'a = x
+let return (x: 'a) : 'a = x

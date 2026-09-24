@@ -1,6 +1,6 @@
 (* ===== Recursion and pattern matching ===== *)
 
-let gauss (n: int) = n * (n + 1) / 2
+let gauss (n: int) : int = n * (n + 1) / 2
 
 let rec sum_to: (int -> int) =
   function

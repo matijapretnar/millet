@@ -102,7 +102,6 @@ rule token = parse
   | "::"                { CONS }
   | ':'                 { COLON }
   | ','                 { COMMA }
-  | '.'                 { DOT }
   | '|'                 { BAR }
   | "||"                { BARBAR }
   | ';'                 { SEMI }

@@ -90,9 +90,9 @@ The `ty` type represents Millet types:
 | Surface | Core AST | Effect |
 | --- | --- | --- |
 | `type t = ...` | `TyDef [...]` | registers a type definition |
-| `let x = e` | `TopLet (x, expr)` | binds a value in the global environment |
+| `let f (p1 : ty1) ... (pn : tyn) : ty = e` | `TopLet (f, (params, ty1 -> ... -> tyn -> ty), expr)` | binds a value with its declared type scheme in the global environment; `params` are the free type params of the declared type, and `n` may be 0 |
 | `run t` | `TopDo comp` | enqueues a computation for evaluation |
-| `let rec f = e` | `TopLet (f, RecLambda ...)` | desugared to `TopLet` before reaching the core |
+| `let rec f (p1 : ty1) ... (pn : tyn) : ty = e` | `TopLet (f, (params, ty1 -> ... -> tyn -> ty), RecLambda ...)` | desugared to `TopLet` before reaching the core |
 
 ## The Symbol system
 
@@ -113,16 +113,16 @@ The **desugarer** (`src/03-desugarer/desugarer.ml`) is the sole boundary between
 
 `Variable.refresh x` creates a fresh symbol with the same annotation as `x`. The interpreter uses this to rename bound variables when substituting into recursive closures, preventing variable capture.
 
-## Type inference
+## Type checking
 
-`src/04-typechecker/typechecker.ml` implements Hindley-Milner inference as constraint generation followed by unification.
+`src/04-typechecker/typechecker.ml` implements a bidirectional typechecker: `infer_*` synthesises a type, `check_*` checks against an expected one, and the two meet at subsumption, where `unify` extends a substitution `ty TyParamMap.t ref`.
 
-> **Planned change:** The HM typechecker will be replaced with a bidirectional typechecker, which is easier to extend and provides better error messages.
-
-- `infer_expression` and `infer_computation` each return `(ty * (ty * ty) list)`: the inferred type plus a list of equality constraints accumulated along the way.
-- `unify` solves the constraint list and returns a substitution `ty TyParamMap.t`.
+- Every top-level definition must declare its type: all its arguments and its result are annotated. The desugarer reads this header, quantifies over its free type params, and emits `TopLet (x, (params, ty), expr)`. The typechecker checks `expr` against `ty` and binds `x` to the declared scheme; it does not generalise.
+- The quantified params are rigid: `unify` does not bind a param in `state.rigid_params`, so `let f (x : 'a) : 'a = x + 1` is rejected. Annotations in the body can refer to the params of the header, but not introduce new ones.
+- All other `TyParam`s are unification variables, created by `fresh_ty`. Both kinds share the `TyParam` constructor for now; after the move to bindlib, unification variables will get their own constructor.
 - `TyTuple []` is the unit type — there is no separate unit constructor.
-- Type schemes `(ty_param list * ty)` are stored in the variable environment. `refreshing_subst` instantiates them with fresh type variables at each use site, giving let-polymorphism.
+- Type schemes `(ty_param list * ty)` are stored in the variable environment. `refreshing_subst` instantiates them with fresh unification variables at each use site.
+- Inner `let`s are not generalised, and a recursive function is monomorphic in its own body.
 
 ## The small-step interpreter
 

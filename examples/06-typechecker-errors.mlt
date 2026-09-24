@@ -27,10 +27,7 @@ type shape =
    Error: "Cannot infer the type of a recursive function (bound as
    loop); its argument pattern x needs a type annotation ..."
    ---------------------------------------------------------------- *)
-(*
-let rec loop x = loop x
-run loop 5
-*)
+(* run (let rec loop x = loop x in loop 5) *)
 
 
 (* ----------------------------------------------------------------
@@ -83,12 +80,12 @@ run loop 5
 
 (* ----------------------------------------------------------------
    9. Occurs-check failure: a type can't be made equal to something
-   built out of itself. `broken` claims to return 'a but actually
-   returns a pair of 'a's.
+   built out of itself. `f` returns itself, so its result type
+   would have to contain itself.
    Error: "This expression has a type that would require an
    infinite type"
    ---------------------------------------------------------------- *)
-(* let 'a. broken (x: 'a) : 'a = (x, x) *)
+(* run (let rec f (y : int) = f in f) *)
 
 
 (* ----------------------------------------------------------------
@@ -120,3 +117,11 @@ run (On 5)
    Error: "Type list expects 1 arguments but got 2."
    ---------------------------------------------------------------- *)
 (* type wrapper = Wrap of (int, bool) list *)
+
+
+(* ----------------------------------------------------------------
+   13. A type parameter of a top-level definition is rigid: the body
+   must work for every 'a, not just for int.
+   Error: "Cannot unify α = int"
+   ---------------------------------------------------------------- *)
+(* let bad (x: 'a) : 'a = x + 1 *)

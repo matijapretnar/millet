@@ -1,3 +1,3 @@
-let 'a. u (x: 'a) = x
+let u (x: 'a) : 'a = x
 run let v = u u in
     (v 42, v "foo")
