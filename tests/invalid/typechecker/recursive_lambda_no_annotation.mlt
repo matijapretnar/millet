@@ -1,0 +1,7 @@
+(* ----------------------------------------------------------------
+   A recursive function with an unannotated parameter, whose self-call
+   happens before its type could ever be known.
+   Error: "Cannot infer the type of a recursive function (bound as
+   loop); its argument pattern x needs a type annotation ..."
+   ---------------------------------------------------------------- *)
+run (let rec loop x = loop x in loop 5)

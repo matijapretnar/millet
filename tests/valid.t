@@ -1,26 +1,13 @@
-  $ for f in *.mlt ../examples/*.mlt
+  $ for f in valid/*.mlt ../examples/*.mlt
   > do
   >   echo "======================================================================"
   >   echo $f
   >   echo "======================================================================"
   >   ../cli.exe $f
-  >   :  # this command is here to suppress potential non-zero exit codes in the output
+  >   : # this command is here to suppress potential non-zero exit codes in the output
   > done
   ======================================================================
-  duplicate_variant_tydef_sum.mlt
-  ======================================================================
-  Syntax error (file "duplicate_variant_tydef_sum.mlt", line 3, char 1):
-  Label Horn defined multiple times.
-  ======================================================================
-  invalid_match_type.mlt
-  ======================================================================
-  Typing error: Cannot unify a list = b
-  ======================================================================
-  less_than_function.mlt
-  ======================================================================
-  Runtime error: Incomparable expression (fun x ↦ return x)
-  ======================================================================
-  lexer.mlt
+  valid/lexer.mlt
   ======================================================================
   return 10
   return 20
@@ -41,23 +28,10 @@
   return 6.1592
   return -3.14
   ======================================================================
-  malformed_type_application.mlt
-  ======================================================================
-  Typing error: Type foo expects 1 arguments but got 2.
-  ======================================================================
-  non_linear_pattern.mlt
-  ======================================================================
-  Syntax error (file "non_linear_pattern.mlt", line 3, char 9):
-  Variable a defined multiple times.
-  ======================================================================
-  occurs_check.mlt
-  ======================================================================
-  Typing error: This expression has a type that would require an infinite type
-  ======================================================================
-  orelse_andalso.mlt
+  valid/orelse_andalso.mlt
   ======================================================================
   ======================================================================
-  patterns.mlt
+  valid/patterns.mlt
   ======================================================================
   return 5
   return (1, 2)
@@ -69,30 +43,18 @@
   return (1, 2, 3, (1, 2, 3))
   return ("foo", "foo", "bar")
   ======================================================================
-  polymorphism.mlt
+  valid/polymorphism.mlt
   ======================================================================
   return (5, "foo")
   return (4, "foo")
   return (1::u, "foo"::u)
   return ([]::v, (2::[])::v)
-  return weird1
-  return weird2
+  return (fun x ↦ let h = return (fun t ↦ return (fun u ↦ return u)) in
+                  let b = h x in b x)
+  return (fun x ↦ let h = return (fun t ↦ return (fun u ↦ return t)) in
+                  let b = h x in b x)
   ======================================================================
-  polymorphism_id_id.mlt
-  ======================================================================
-  Typing error: Cannot unify string = int
-  ======================================================================
-  shadow_label.mlt
-  ======================================================================
-  Syntax error (file "shadow_label.mlt", line 2, char 1):
-  Label Horn defined multiple times.
-  ======================================================================
-  shadow_type.mlt
-  ======================================================================
-  Syntax error (file "shadow_type.mlt", line 3, char 1):
-  Type cow defined multiple times.
-  ======================================================================
-  test_equality.mlt
+  valid/test_equality.mlt
   ======================================================================
   return true
   return false
@@ -101,7 +63,7 @@
   return false
   return true
   ======================================================================
-  test_less_then.mlt
+  valid/test_less_then.mlt
   ======================================================================
   return false
   return true
@@ -114,7 +76,7 @@
   return true
   return false
   ======================================================================
-  test_precedence_and_associativity.mlt
+  valid/test_precedence_and_associativity.mlt
   ======================================================================
   return 1
   return 2
@@ -126,7 +88,7 @@
   return true
   return 22
   ======================================================================
-  test_stdlib.mlt
+  valid/test_stdlib.mlt
   ======================================================================
   return "test less"
   return true
@@ -222,24 +184,19 @@
   return "foo"
   return 4
   ======================================================================
-  tydef.mlt
+  valid/tydef.mlt
   ======================================================================
   return Tail
   return (Node (10, Empty, Node (20, Empty, Empty)))
   ======================================================================
-  type_annotations.mlt
+  valid/type_annotations.mlt
   ======================================================================
   return (fun y ↦ return (fun z ↦ let b = let b = z y in b true in return b))
   ======================================================================
-  typing.mlt
+  valid/typing.mlt
   ======================================================================
   return (fun y ↦ return y)
   return h
-  ======================================================================
-  use_undefined_type.mlt
-  ======================================================================
-  Syntax error (file "use_undefined_type.mlt", line 1, char 19):
-  Unknown name --bar--
   ======================================================================
   ../examples/01-basics.mlt
   ======================================================================
@@ -299,15 +256,3 @@
   return (1::3::4::5::6::7::8::[])
   return true
   return false
-  ======================================================================
-  ../examples/05-annotation-showcase.mlt
-  ======================================================================
-  return 52.70795
-  return 2
-  return (Some (Square 5.))
-  return 42
-  return "hello"
-  return (fun s ↦ area s, Square 3.)
-  ======================================================================
-  ../examples/06-typechecker-errors.mlt
-  ======================================================================

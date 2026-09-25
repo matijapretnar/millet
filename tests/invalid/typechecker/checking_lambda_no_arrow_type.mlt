@@ -1,0 +1,6 @@
+(* ----------------------------------------------------------------
+   A checking-mode lambda whose expected type isn't an arrow at
+   all -- e.g. checked against a plain int.
+   Error: "This function is expected to have type int"
+   ---------------------------------------------------------------- *)
+run ((fun x -> x) : int)

@@ -79,7 +79,7 @@ type 'a tree =
   | Leaf
   | Node of 'a tree * 'a * 'a tree
 
-let rec 'a. insert (x: 'a) : 'a tree -> 'a tree =
+let rec insert (x: 'a) : 'a tree -> 'a tree =
   function
   | Leaf -> Node (Leaf, x, Leaf)
   | Node (l, y, r) ->
@@ -87,7 +87,7 @@ let rec 'a. insert (x: 'a) : 'a tree -> 'a tree =
     else if x > y then Node (l, y, insert x r)
     else Node (l, y, r)      (* already present: no change *)
 
-let rec 'a. contains (x: 'a) : 'a tree -> bool =
+let rec contains (x: 'a) : 'a tree -> bool =
   function
   | Leaf -> false
   | Node (l, y, r) ->
@@ -95,12 +95,12 @@ let rec 'a. contains (x: 'a) : 'a tree -> bool =
     else if x < y then contains x l
     else contains x r
 
-let rec 'a. to_list : 'a tree -> 'a list =
+let rec to_list : 'a tree -> 'a list =
   function
   | Leaf -> []
   | Node (l, x, r) -> to_list l @ [x] @ to_list r
 
-let 'a. of_list (xs: 'a list) : 'a tree = fold_left (fun t x -> insert x t) Leaf xs
+let of_list (xs: 'a list) : 'a tree = fold_left (fun t x -> insert x t) Leaf xs
 
 run to_list (of_list [5; 3; 7; 1; 4; 6; 8])
 run contains 4 (of_list [5; 3; 7; 1; 4; 6; 8])

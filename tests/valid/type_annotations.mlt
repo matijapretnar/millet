@@ -12,7 +12,7 @@ let g (x: 'a) (y: 'a) : 'a = y
 
 let g (x: 'a) (y: 'b) : 'a*'b = (x, y)
 
-let 'a. g (x : 'a) : 'a*'a = (x, x)
+let g (x : 'a) : 'a*'a = (x, x)
 
 let f : (int -> int) = function
   | (x: int) -> x

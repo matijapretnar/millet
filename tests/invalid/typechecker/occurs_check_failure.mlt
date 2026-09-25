@@ -1,0 +1,8 @@
+(* ----------------------------------------------------------------
+   Occurs-check failure: a type can't be made equal to something
+   built out of itself. `f` returns itself, so its result type
+   would have to contain itself.
+   Error: "This expression has a type that would require an
+   infinite type"
+   ---------------------------------------------------------------- *)
+run (let rec f (y : int) = f in f)

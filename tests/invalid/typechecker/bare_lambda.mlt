@@ -1,0 +1,6 @@
+(* ----------------------------------------------------------------
+   Bare lambda, no expected type anywhere to check it against.
+   Error: "Cannot infer the type of a function; its argument
+   pattern x needs a type annotation ..."
+   ---------------------------------------------------------------- *)
+run (fun x -> x + 1) 5

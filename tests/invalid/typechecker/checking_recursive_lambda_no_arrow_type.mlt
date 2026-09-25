@@ -1,0 +1,6 @@
+(* ----------------------------------------------------------------
+   A full signature that isn't an arrow, given via the "f : ty = body"
+   form rather than per-parameter annotations.
+   Error: "This recursive function is expected to have type int"
+   ---------------------------------------------------------------- *)
+let rec f : int = function | x -> x

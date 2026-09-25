@@ -1,0 +1,7 @@
+(* ----------------------------------------------------------------
+   A variant applied to an argument when its label was declared
+   to take none.
+   Error: "Variant optional argument mismatch"
+   ---------------------------------------------------------------- *)
+type flag = On | Off
+run (On 5)
