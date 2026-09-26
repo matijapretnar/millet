@@ -103,4 +103,3 @@
   invalid/typechecker/tuple_arity_mismatch.mlt
   ======================================================================
   Typing error: Expected a tuple pattern of type int × int, got a 3-tuple
-  

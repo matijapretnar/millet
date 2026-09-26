@@ -4,7 +4,6 @@
   >   echo $f
   >   echo "======================================================================"
   >   ../cli.exe $f
-  >   : # this command is here to suppress potential non-zero exit codes in the output
   > done
   ======================================================================
   valid/lexer.mlt
