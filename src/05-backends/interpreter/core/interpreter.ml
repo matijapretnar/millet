@@ -24,18 +24,21 @@ type computation_reduction =
 let rec eval_tuple env = function
   | Ast.Tuple exprs -> exprs
   | Ast.Var x -> eval_tuple env (Ast.VariableMap.find x env.variables)
+  | Ast.Annotated (expr, _) -> eval_tuple env expr
   | expr ->
       Error.runtime "Tuple expected but got %t" (Ast.print_expression expr)
 
 let rec eval_variant env = function
   | Ast.Variant (lbl, expr) -> (lbl, expr)
   | Ast.Var x -> eval_variant env (Ast.VariableMap.find x env.variables)
+  | Ast.Annotated (expr, _) -> eval_variant env expr
   | expr ->
       Error.runtime "Variant expected but got %t" (Ast.print_expression expr)
 
 let rec eval_const env = function
   | Ast.Const c -> c
   | Ast.Var x -> eval_const env (Ast.VariableMap.find x env.variables)
+  | Ast.Annotated (expr, _) -> eval_const env expr
   | expr ->
       Error.runtime "Const expected but got %t" (Ast.print_expression expr)
 
@@ -174,6 +177,7 @@ let rec eval_function env = function
       match Ast.VariableMap.find_opt x env.variables with
       | Some expr -> eval_function env expr
       | None -> Ast.VariableMap.find x env.builtin_functions)
+  | Ast.Annotated (expr, _) -> eval_function env expr
   | expr ->
       Error.runtime "Function expected but got %t" (Ast.print_expression expr)
 

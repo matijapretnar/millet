@@ -55,9 +55,9 @@ module Loader (Backend : Backend.S) = struct
           typechecker = typechecker_state';
           backend = backend_state';
         }
-    | Ast.TopLet (x, expr) ->
+    | Ast.TopLet (x, ty_sch, expr) ->
         let typechecker_state' =
-          Typechecker.add_top_definition state.typechecker x expr
+          Typechecker.add_top_definition state.typechecker x ty_sch expr
         in
         let backend_state' = Backend.load_top_let state.backend x expr in
         {
