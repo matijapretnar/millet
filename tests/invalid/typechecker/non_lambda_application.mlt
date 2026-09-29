@@ -1,0 +1,5 @@
+(* ----------------------------------------------------------------
+   Applying something that isn't a function.
+   Error: "This expression of type int is not a function"
+   ---------------------------------------------------------------- *)
+run 5 3

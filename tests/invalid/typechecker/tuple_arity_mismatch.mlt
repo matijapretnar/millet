@@ -1,0 +1,7 @@
+(* ----------------------------------------------------------------
+   A tuple pattern whose arity doesn't match its own declared
+   type.
+   Error: "Expected a tuple pattern of type int × int, got a
+   3-tuple"
+   ---------------------------------------------------------------- *)
+let bad ((a, b, c): int * int) : int = a + b + c

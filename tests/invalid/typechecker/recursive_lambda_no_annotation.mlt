@@ -1,0 +1,6 @@
+(* ----------------------------------------------------------------
+   A recursive function with an unannotated parameter. Every
+   argument and the result of a recursive function must be annotated.
+   Error: "An argument of the definition loop needs a type annotation"
+   ---------------------------------------------------------------- *)
+run (let rec loop x = loop x in loop 5)

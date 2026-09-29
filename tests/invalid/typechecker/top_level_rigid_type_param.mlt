@@ -1,0 +1,6 @@
+(* ----------------------------------------------------------------
+   A type parameter of a top-level definition is rigid: the body
+   must work for every 'a, not just for int.
+   Error: "Cannot unify α = int"
+   ---------------------------------------------------------------- *)
+let bad (x: 'a) : 'a = x + 1

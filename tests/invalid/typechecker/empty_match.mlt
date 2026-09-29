@@ -1,0 +1,7 @@
+(* ----------------------------------------------------------------
+   A `match` with zero branches and no expected type flowing in
+   from a signature or surrounding checked position.
+   Error: "Cannot infer the type of a match expression with no
+   cases; an annotation is required"
+   ---------------------------------------------------------------- *)
+run (match (1, 2) with)

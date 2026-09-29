@@ -1,0 +1,9 @@
+(* ----------------------------------------------------------------
+   A named type constructor used with the wrong number of type
+   arguments, inside a type definition (arity is currently only
+   checked for types appearing in `type ... = ...` definitions, not
+   for annotations inside ordinary function signatures -- see the
+   file's introductory note above for that caveat).
+   Error: "Type list expects 1 arguments but got 2."
+   ---------------------------------------------------------------- *)
+type wrapper = Wrap of (int, bool) list
