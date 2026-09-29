@@ -136,7 +136,7 @@ type ty_def = TySum of (label * ty option) list | TyInline of ty
 
 type command =
   | TyDef of (ty_param list * ty_name * ty_def) list
-  | TopLet of variable * expression
+  | TopLet of variable * (ty_param list * ty) * expression
   | TopDo of computation
 
 let rec print_pattern ?max_level p ppf =
