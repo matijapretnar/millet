@@ -242,26 +242,6 @@ let rec infer_pattern state subst pat =
         "Cannot infer the type of the pattern %t; it needs a type annotation"
         (print_pattern pat)
 
-let pattern_annotation = function
-  | Ast.PAnnotated (_, ty) -> Some ty
-  | _ -> None
-
-let rec synthesize_ty = function
-  | Ast.Annotated (_, ty) -> Some ty
-  | Ast.Lambda (pat, comp) -> (
-      match pattern_annotation pat with
-      | None -> None
-      | Some ty1 -> (
-          match synthesize_computation_ty comp with
-          | None -> None
-          | Some ty2 -> Some (Ast.TyArrow (ty1, ty2))))
-  | _ -> None
-
-and synthesize_computation_ty = function
-  | Ast.Return expr -> synthesize_ty expr
-  | Ast.Do (_, (_, comp2)) -> synthesize_computation_ty comp2
-  | _ -> None
-
 (* ------------------------------------------------------------------ *)
 (* Expressions. *)
 (* ------------------------------------------------------------------ *)
@@ -277,18 +257,10 @@ let rec infer_expression state subst = function
       ty
   | Ast.Tuple exprs ->
       Ast.TyTuple (List.map (infer_expression state subst) exprs)
-  | Ast.Lambda (pat, comp) -> (
-      match pattern_annotation pat with
-      | None ->
-          Error.typing
-            "Cannot infer the type of a function; its argument pattern %t \
-             needs a type annotation (or it needs to be used where an expected \
-             type is known)"
-            (print_pattern pat)
-      | Some ty1 ->
-          let state' = check_pattern state subst pat ty1 in
-          let ty2 = infer_computation state' subst comp in
-          Ast.TyArrow (ty1, ty2))
+  | Ast.Lambda (pat, comp) ->
+      let state', ty1 = infer_pattern state subst pat in
+      let ty2 = infer_computation state' subst comp in
+      Ast.TyArrow (ty1, ty2)
   | Ast.RecLambda (f, _) ->
       Error.typing
         "Cannot infer the type of the recursive function %t; it needs a type \

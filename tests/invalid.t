@@ -54,7 +54,7 @@
   ======================================================================
   invalid/typechecker/bare_lambda.mlt
   ======================================================================
-  Typing error: Cannot infer the type of a function; its argument pattern x needs a type annotation (or it needs to be used where an expected type is known)
+  Typing error: Cannot infer the type of the pattern x; it needs a type annotation
   ======================================================================
   invalid/typechecker/checking_lambda_no_arrow_type.mlt
   ======================================================================
