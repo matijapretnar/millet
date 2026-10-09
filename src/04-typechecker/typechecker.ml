@@ -161,6 +161,19 @@ let rec match_arrow state subst ty =
       match_arrow state subst (unfold state ty_name args)
   | _ -> None
 
+(* If [ty] is a tuple with [n] components, return them. An unsolved unification
+   variable is set to a tuple of [n] fresh ones. *)
+let rec match_tuple state subst n ty =
+  match resolve subst ty with
+  | Ast.TyTuple tys when List.length tys = n -> Some tys
+  | Ast.TyParam a when not (Ast.TyParamSet.mem a state.rigid_params) ->
+      let tys = List.init n (fun _ -> fresh_ty ()) in
+      bind subst a (Ast.TyTuple tys);
+      Some tys
+  | Ast.TyApply (ty_name, args) when is_transparent_type state ty_name ->
+      match_tuple state subst n (unfold state ty_name args)
+  | _ -> None
+
 let infer_variant state lbl =
   let rec find = function
     | [] -> assert false
@@ -192,15 +205,15 @@ let rec check_pattern state subst pat ty =
       state
   | Ast.PNonbinding -> state
   | Ast.PTuple pats -> (
-      match resolve subst ty with
-      | Ast.TyTuple tys when List.length pats = List.length tys ->
+      match match_tuple state subst (List.length pats) ty with
+      | Some tys ->
           List.fold_left2
             (fun state pat ty -> check_pattern state subst pat ty)
             state pats tys
-      | ty' ->
+      | None ->
           let print_param = Ast.new_print_param () in
           Error.typing "Expected a tuple pattern of type %t, got a %d-tuple"
-            (Ast.print_ty print_param ty')
+            (Ast.print_ty print_param (resolve subst ty))
             (List.length pats))
   | Ast.PVariant (lbl, pat_opt) -> (
       let ty_in, ty_out = infer_variant state lbl in
@@ -310,8 +323,13 @@ and check_expression state subst expr ty =
           let print_param = Ast.new_print_param () in
           Error.typing "This recursive function is expected to have type %t"
             (Ast.print_ty print_param ty'))
-  | Ast.Tuple exprs, Ast.TyTuple tys when List.length exprs = List.length tys ->
-      List.iter2 (check_expression state subst) exprs tys
+  | Ast.Tuple exprs, ty' -> (
+      match match_tuple state subst (List.length exprs) ty' with
+      | Some tys -> List.iter2 (check_expression state subst) exprs tys
+      | None ->
+          let print_param = Ast.new_print_param () in
+          Error.typing "This tuple is expected to have type %t"
+            (Ast.print_ty print_param ty'))
   | expr, ty ->
       (* Subsumption: infer, then check the inferred type agrees. *)
       let ty' = infer_expression state subst expr in

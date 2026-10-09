@@ -3,4 +3,5 @@
    same arity (a tuple vs. a named type application).
    Error: "Cannot unify int × int = int list"
    ---------------------------------------------------------------- *)
-let bad : int list = (1, 2)
+let p : int * int = (1, 2)
+let bad : int list = p

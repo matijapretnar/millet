@@ -9,3 +9,17 @@ type intfun = int -> int
 let apply3 (f : intfun) : int = f 3
 let succ (u : unit) : intfun = fun x -> x + 1
 run apply3 (succ ())
+
+(* An unsolved type is made into a tuple when a tuple is expected *)
+
+let firsts (xs : (int * int) list) : int =
+  match xs with [] -> 0 | (a, b) :: _ -> a
+run firsts [(1, 2)]
+run (match [] with [] -> 0 | (a, b) :: _ -> a + b)
+
+(* An alias of a tuple type is unfolded *)
+
+type pair = int * int
+let fst (p : pair) : int = match p with (a, b) -> a
+let swap (p : pair) : pair = match p with (a, b) -> (b, a)
+run fst (swap (3, 4))

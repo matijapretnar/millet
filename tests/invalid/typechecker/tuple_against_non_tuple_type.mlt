@@ -1,0 +1,5 @@
+(* ----------------------------------------------------------------
+   A tuple checked against a type that is not a tuple.
+   Error: "This tuple is expected to have type int list"
+   ---------------------------------------------------------------- *)
+let bad : int list = (1, 2)

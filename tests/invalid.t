@@ -101,6 +101,10 @@
   ======================================================================
   Typing error: Cannot unify α = int
   ======================================================================
+  invalid/typechecker/tuple_against_non_tuple_type.mlt
+  ======================================================================
+  Typing error: This tuple is expected to have type int list
+  ======================================================================
   invalid/typechecker/tuple_arity_mismatch.mlt
   ======================================================================
   Typing error: Expected a tuple pattern of type int × int, got a 3-tuple
