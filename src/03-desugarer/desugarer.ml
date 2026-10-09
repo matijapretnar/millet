@@ -56,6 +56,27 @@ let rec strip_annotation ({ Sugared.it = term; at = loc } : Sugared.term) =
       (inner, ty :: tys)
   | _ -> (({ Sugared.it = term; at = loc } : Sugared.term), [])
 
+let pattern_annotation { Sugared.it = pat; _ } =
+  match pat with Sugared.PAnnotated (_, ty) -> Some ty | _ -> None
+
+(* The header of a top-level or recursive definition consists of its arguments
+   and its result. All of them must be annotated, and together the annotations
+   give the declared type of the definition. *)
+let rec header_ty x ({ Sugared.it = term; at = loc } : Sugared.term) =
+  match term with
+  | Sugared.Annotated (_, ty) -> ty
+  | Sugared.Lambda (pat, term') -> (
+      match pattern_annotation pat with
+      | Some ty1 ->
+          let ty2 = header_ty x term' in
+          { Sugared.it = Sugared.TyArrow (ty1, ty2); at = loc }
+      | None ->
+          Error.syntax ~loc:pat.at
+            "An argument of the definition %s needs a type annotation" x)
+  | _ ->
+      Error.syntax ~loc
+        "The result of the definition %s needs a type annotation" x
+
 let rec desugar_ty state { Sugared.it = plain_ty; at = loc } =
   desugar_plain_ty ~loc state plain_ty
 
@@ -260,28 +281,6 @@ let add_fresh_ty_params state params =
   let aux ty_params p = StringMap.add p (Untyped.TyParam.fresh p) ty_params in
   let ty_params' = List.fold_left aux state.ty_params params in
   { state with ty_params = ty_params' }
-
-let pattern_annotation { Sugared.it = pat; _ } =
-  match pat with Sugared.PAnnotated (_, ty) -> Some ty | _ -> None
-
-(* The header of a top-level definition consists of its arguments and its
-   result. All of them must be annotated, and together the annotations give the
-   declared type of the definition. *)
-let rec header_ty x ({ Sugared.it = term; at = loc } : Sugared.term) =
-  match term with
-  | Sugared.Annotated (_, ty) -> ty
-  | Sugared.Lambda (pat, term') -> (
-      match pattern_annotation pat with
-      | Some ty1 ->
-          let ty2 = header_ty x term' in
-          { Sugared.it = Sugared.TyArrow (ty1, ty2); at = loc }
-      | None ->
-          Error.syntax ~loc:pat.at
-            "An argument of the top-level definition %s needs a type annotation"
-            x)
-  | _ ->
-      Error.syntax ~loc
-        "The result of the top-level definition %s needs a type annotation" x
 
 let rec free_ty_params { Sugared.it = ty; _ } =
   match ty with
