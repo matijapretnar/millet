@@ -278,23 +278,17 @@ let rec infer_expression state subst = function
   | Ast.Tuple exprs ->
       Ast.TyTuple (List.map (infer_expression state subst) exprs)
   | Ast.Lambda (pat, comp) -> (
-      match synthesize_ty (Ast.Lambda (pat, comp)) with
-      | Some (Ast.TyArrow (ty1, ty2) as full_ty) ->
+      match pattern_annotation pat with
+      | None ->
+          Error.typing
+            "Cannot infer the type of a function; its argument pattern %t \
+             needs a type annotation (or it needs to be used where an expected \
+             type is known)"
+            (print_pattern pat)
+      | Some ty1 ->
           let state' = check_pattern state subst pat ty1 in
-          check_computation state' subst comp ty2;
-          full_ty
-      | Some _ | None -> (
-          match pattern_annotation pat with
-          | None ->
-              Error.typing
-                "Cannot infer the type of a function; its argument pattern %t \
-                 needs a type annotation (or it needs to be used where an \
-                 expected type is known)"
-                (print_pattern pat)
-          | Some ty1 ->
-              let state' = check_pattern state subst pat ty1 in
-              let ty2 = infer_computation state' subst comp in
-              Ast.TyArrow (ty1, ty2)))
+          let ty2 = infer_computation state' subst comp in
+          Ast.TyArrow (ty1, ty2))
   | Ast.RecLambda (f, (pat, comp)) -> (
       match synthesize_ty (Ast.Lambda (pat, comp)) with
       | Some (Ast.TyArrow (ty1, ty2) as full_ty) ->
