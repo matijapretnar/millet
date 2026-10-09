@@ -37,6 +37,11 @@
   ======================================================================
   Typing error: Cannot unify string = int
   ======================================================================
+  invalid/self_reference_without_rec.mlt
+  ======================================================================
+  Syntax error (file "invalid/self_reference_without_rec.mlt", line 1, char 25):
+  Unknown name --f--
+  ======================================================================
   invalid/shadow_label.mlt
   ======================================================================
   Syntax error (file "invalid/shadow_label.mlt", line 2, char 1):
