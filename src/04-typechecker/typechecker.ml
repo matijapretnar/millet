@@ -216,6 +216,32 @@ let rec print_pattern pat ppf =
   | Ast.PVariant (lbl, Some pat) ->
       Format.fprintf ppf "%t %t" (Ast.Label.print lbl) (print_pattern pat)
 
+let rec infer_pattern state subst pat =
+  match pat with
+  | Ast.PAnnotated (pat, ty) -> (check_pattern state subst pat ty, ty)
+  | Ast.PConst c -> (state, Ast.TyConst (Const.infer_ty c))
+  | Ast.PAs (pat, x) ->
+      let state', ty = infer_pattern state subst pat in
+      (extend_variables state' [ (x, ty) ], ty)
+  | Ast.PTuple pats ->
+      let state', tys =
+        List.fold_left_map
+          (fun state pat -> infer_pattern state subst pat)
+          state pats
+      in
+      (state', Ast.TyTuple tys)
+  | Ast.PVariant (lbl, pat_opt) -> (
+      let ty_in, ty_out = infer_variant state lbl in
+      match (ty_in, pat_opt) with
+      | None, None -> (state, ty_out)
+      | Some ty_in, Some pat -> (check_pattern state subst pat ty_in, ty_out)
+      | None, Some _ | Some _, None ->
+          Error.typing "Variant optional argument mismatch")
+  | Ast.PVar _ | Ast.PNonbinding ->
+      Error.typing
+        "Cannot infer the type of the pattern %t; it needs a type annotation"
+        (print_pattern pat)
+
 let pattern_annotation = function
   | Ast.PAnnotated (_, ty) -> Some ty
   | _ -> None
