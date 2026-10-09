@@ -1,1 +1,1 @@
-run let rec f (x: int) = f in f
+run let x = [] in x = [x]

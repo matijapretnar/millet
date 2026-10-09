@@ -90,7 +90,8 @@
   ======================================================================
   invalid/typechecker/recursive_lambda_no_annotation.mlt
   ======================================================================
-  Typing error: Cannot infer the type of a recursive function (bound as loop); its argument pattern x needs a type annotation (or it needs to be used where an expected type is known)
+  Syntax error (file "invalid/typechecker/recursive_lambda_no_annotation.mlt", line 6, char 19):
+  An argument of the definition loop needs a type annotation
   ======================================================================
   invalid/typechecker/structural_type_mismatch.mlt
   ======================================================================

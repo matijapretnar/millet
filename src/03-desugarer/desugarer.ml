@@ -232,6 +232,11 @@ and desugar_abstraction state (pat, term) =
 
 and desugar_let_rec_def state (f, term) =
   let term, annotations = strip_annotation term in
+  (* A recursive function is always annotated with its full type, so the
+     typechecker can check its body against it. *)
+  let annotations =
+    match annotations with [] -> [ header_ty f term ] | _ -> annotations
+  in
 
   let f' = Untyped.Variable.fresh f in
   let state' = add_fresh_variables state (StringMap.singleton f f') in
