@@ -351,13 +351,13 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
       in
       (state'', Untyped.TyDef defs')
   | Sugared.TopLet (x, term) ->
-      let x' = Untyped.Variable.fresh x in
-      let state' = add_fresh_variables state (StringMap.singleton x x') in
-      let state'', ty_sch = desugar_ty_scheme state' x term in
-      let expr = desugar_pure_expression state'' term in
-      (* we ignore state'' in the end since it is polluted with
+      let state', ty_sch = desugar_ty_scheme state x term in
+      let expr = desugar_pure_expression state' term in
+      (* we ignore state' in the end since it is polluted with
       type params, which we needed only to desugar expr *)
-      (state', Untyped.TopLet (x', ty_sch, expr))
+      let x' = Untyped.Variable.fresh x in
+      let state'' = add_fresh_variables state (StringMap.singleton x x') in
+      (state'', Untyped.TopLet (x', ty_sch, expr))
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
