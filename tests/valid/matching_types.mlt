@@ -1,0 +1,11 @@
+(* An unsolved type is made into an arrow when a function is expected *)
+
+let id (x : 'a) : 'a = x
+run (id (fun y -> y)) 1
+
+(* An alias of an arrow type is unfolded *)
+
+type intfun = int -> int
+let apply3 (f : intfun) : int = f 3
+let succ (u : unit) : intfun = fun x -> x + 1
+run apply3 (succ ())

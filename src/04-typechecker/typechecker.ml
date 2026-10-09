@@ -148,6 +148,19 @@ let rec unify state subst t1 t2 =
         (Ast.print_ty print_param t1)
         (Ast.print_ty print_param t2)
 
+(* If [ty] is an arrow, return its domain and codomain. An unsolved unification
+   variable is set to an arrow between two fresh ones. *)
+let rec match_arrow state subst ty =
+  match resolve subst ty with
+  | Ast.TyArrow (ty1, ty2) -> Some (ty1, ty2)
+  | Ast.TyParam a when not (Ast.TyParamSet.mem a state.rigid_params) ->
+      let ty1 = fresh_ty () and ty2 = fresh_ty () in
+      bind subst a (Ast.TyArrow (ty1, ty2));
+      Some (ty1, ty2)
+  | Ast.TyApply (ty_name, args) when is_transparent_type state ty_name ->
+      match_arrow state subst (unfold state ty_name args)
+  | _ -> None
+
 let infer_variant state lbl =
   let rec find = function
     | [] -> assert false
@@ -278,21 +291,25 @@ let rec infer_expression state subst = function
 
 and check_expression state subst expr ty =
   match (expr, resolve subst ty) with
-  | Ast.Lambda (pat, comp), Ast.TyArrow (ty1, ty2) ->
-      let state' = check_pattern state subst pat ty1 in
-      check_computation state' subst comp ty2
-  | Ast.Lambda _, ty' ->
-      let print_param = Ast.new_print_param () in
-      Error.typing "This function is expected to have type %t"
-        (Ast.print_ty print_param ty')
-  | Ast.RecLambda (f, (pat, comp)), (Ast.TyArrow (ty1, ty2) as ty') ->
-      let state' = extend_variables state [ (f, ty') ] in
-      let state'' = check_pattern state' subst pat ty1 in
-      check_computation state'' subst comp ty2
-  | Ast.RecLambda _, ty' ->
-      let print_param = Ast.new_print_param () in
-      Error.typing "This recursive function is expected to have type %t"
-        (Ast.print_ty print_param ty')
+  | Ast.Lambda (pat, comp), ty' -> (
+      match match_arrow state subst ty' with
+      | Some (ty1, ty2) ->
+          let state' = check_pattern state subst pat ty1 in
+          check_computation state' subst comp ty2
+      | None ->
+          let print_param = Ast.new_print_param () in
+          Error.typing "This function is expected to have type %t"
+            (Ast.print_ty print_param ty'))
+  | Ast.RecLambda (f, (pat, comp)), ty' -> (
+      match match_arrow state subst ty' with
+      | Some (ty1, ty2) ->
+          let state' = extend_variables state [ (f, Ast.TyArrow (ty1, ty2)) ] in
+          let state'' = check_pattern state' subst pat ty1 in
+          check_computation state'' subst comp ty2
+      | None ->
+          let print_param = Ast.new_print_param () in
+          Error.typing "This recursive function is expected to have type %t"
+            (Ast.print_ty print_param ty'))
   | Ast.Tuple exprs, Ast.TyTuple tys when List.length exprs = List.length tys ->
       List.iter2 (check_expression state subst) exprs tys
   | expr, ty ->
@@ -312,14 +329,14 @@ and infer_computation state subst = function
       infer_computation state' subst comp2
   | Ast.Apply (e1, e2) -> (
       let ty1 = infer_expression state subst e1 in
-      match resolve subst ty1 with
-      | Ast.TyArrow (ty_arg, ty_res) ->
+      match match_arrow state subst ty1 with
+      | Some (ty_arg, ty_res) ->
           check_expression state subst e2 ty_arg;
           ty_res
-      | ty' ->
+      | None ->
           let print_param = Ast.new_print_param () in
           Error.typing "This expression of type %t is not a function"
-            (Ast.print_ty print_param ty'))
+            (Ast.print_ty print_param (resolve subst ty1)))
   | Ast.Match (_, []) ->
       Error.typing
         "Cannot infer the type of a match expression with no cases; an \
