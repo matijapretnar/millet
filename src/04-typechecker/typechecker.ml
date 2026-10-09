@@ -191,39 +191,6 @@ let infer_variant state lbl =
   and ty' = Option.map (Ast.substitute_ty inst_subst) ty in
   (ty', Ast.TyApply (ty_name, args))
 
-let rec check_pattern state subst pat ty =
-  match pat with
-  | Ast.PVar x -> extend_variables state [ (x, ty) ]
-  | Ast.PAs (pat, x) ->
-      let state' = check_pattern state subst pat ty in
-      extend_variables state' [ (x, ty) ]
-  | Ast.PAnnotated (pat, ty') ->
-      unify state subst ty ty';
-      check_pattern state subst pat ty
-  | Ast.PConst c ->
-      unify state subst ty (Ast.TyConst (Const.infer_ty c));
-      state
-  | Ast.PNonbinding -> state
-  | Ast.PTuple pats -> (
-      match match_tuple state subst (List.length pats) ty with
-      | Some tys ->
-          List.fold_left2
-            (fun state pat ty -> check_pattern state subst pat ty)
-            state pats tys
-      | None ->
-          let print_param = Ast.new_print_param () in
-          Error.typing "Expected a tuple pattern of type %t, got a %d-tuple"
-            (Ast.print_ty print_param (resolve subst ty))
-            (List.length pats))
-  | Ast.PVariant (lbl, pat_opt) -> (
-      let ty_in, ty_out = infer_variant state lbl in
-      unify state subst ty ty_out;
-      match (ty_in, pat_opt) with
-      | None, None -> state
-      | Some ty_in, Some pat -> check_pattern state subst pat ty_in
-      | None, Some _ | Some _, None ->
-          Error.typing "Variant optional argument mismatch")
-
 let rec print_pattern pat ppf =
   match pat with
   | Ast.PVar x -> Ast.Variable.print x ppf
@@ -242,7 +209,31 @@ let rec print_pattern pat ppf =
   | Ast.PVariant (lbl, Some pat) ->
       Format.fprintf ppf "%t %t" (Ast.Label.print lbl) (print_pattern pat)
 
-let rec infer_pattern state subst pat =
+let rec check_pattern state subst pat ty =
+  match pat with
+  | Ast.PVar x -> extend_variables state [ (x, ty) ]
+  | Ast.PAs (pat, x) ->
+      let state' = check_pattern state subst pat ty in
+      extend_variables state' [ (x, ty) ]
+  | Ast.PNonbinding -> state
+  | Ast.PTuple pats -> (
+      match match_tuple state subst (List.length pats) ty with
+      | Some tys ->
+          List.fold_left2
+            (fun state pat ty -> check_pattern state subst pat ty)
+            state pats tys
+      | None ->
+          let print_param = Ast.new_print_param () in
+          Error.typing "Expected a tuple pattern of type %t, got a %d-tuple"
+            (Ast.print_ty print_param (resolve subst ty))
+            (List.length pats))
+  | (Ast.PAnnotated _ | Ast.PConst _ | Ast.PVariant _) as pat ->
+      (* Subsumption: infer, then check the inferred type agrees. *)
+      let state', ty' = infer_pattern state subst pat in
+      unify state subst ty' ty;
+      state'
+
+and infer_pattern state subst pat =
   match pat with
   | Ast.PAnnotated (pat, ty) -> (check_pattern state subst pat ty, ty)
   | Ast.PConst c -> (state, Ast.TyConst (Const.infer_ty c))
