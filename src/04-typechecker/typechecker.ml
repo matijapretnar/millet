@@ -294,18 +294,18 @@ let rec infer_expression state subst = function
           Error.typing "Variant optional argument mismatch")
 
 and check_expression state subst expr ty =
-  match (expr, resolve subst ty) with
-  | Ast.Lambda (pat, comp), ty' -> (
-      match match_arrow state subst ty' with
+  match expr with
+  | Ast.Lambda (pat, comp) -> (
+      match match_arrow state subst ty with
       | Some (ty1, ty2) ->
           let state' = check_pattern state subst pat ty1 in
           check_computation state' subst comp ty2
       | None ->
           let print_param = Ast.new_print_param () in
           Error.typing "This function is expected to have type %t"
-            (Ast.print_ty print_param ty'))
-  | Ast.RecLambda (f, (pat, comp)), ty' -> (
-      match match_arrow state subst ty' with
+            (Ast.print_ty print_param (resolve subst ty)))
+  | Ast.RecLambda (f, (pat, comp)) -> (
+      match match_arrow state subst ty with
       | Some (ty1, ty2) ->
           let state' = extend_variables state [ (f, Ast.TyArrow (ty1, ty2)) ] in
           let state'' = check_pattern state' subst pat ty1 in
@@ -313,15 +313,15 @@ and check_expression state subst expr ty =
       | None ->
           let print_param = Ast.new_print_param () in
           Error.typing "This recursive function is expected to have type %t"
-            (Ast.print_ty print_param ty'))
-  | Ast.Tuple exprs, ty' -> (
-      match match_tuple state subst (List.length exprs) ty' with
+            (Ast.print_ty print_param (resolve subst ty)))
+  | Ast.Tuple exprs -> (
+      match match_tuple state subst (List.length exprs) ty with
       | Some tys -> List.iter2 (check_expression state subst) exprs tys
       | None ->
           let print_param = Ast.new_print_param () in
           Error.typing "This tuple is expected to have type %t"
-            (Ast.print_ty print_param ty'))
-  | expr, ty ->
+            (Ast.print_ty print_param (resolve subst ty)))
+  | _ ->
       (* Subsumption: infer, then check the inferred type agrees. *)
       let ty' = infer_expression state subst expr in
       unify state subst ty' ty
