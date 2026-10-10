@@ -2,13 +2,13 @@ open Utils
 module Ast = Language.Ast
 module Const = Language.Const
 
-type environment = {
-  top_vars : Ast.expression Ast.TopVarMap.t;
-  builtin_functions : (Ast.expression -> Ast.computation) Ast.TopVarMap.t;
-}
+type top_value =
+  | Defined of Ast.expression
+  | Primitive of (Ast.expression -> Ast.computation)
 
-let initial_environment =
-  { top_vars = Ast.TopVarMap.empty; builtin_functions = Ast.TopVarMap.empty }
+type environment = { top_vars : top_value Ast.TopVarMap.t }
+
+let initial_environment = { top_vars = Ast.TopVarMap.empty }
 
 exception PatternMismatch
 
@@ -18,25 +18,31 @@ type computation_reduction =
   | DoCtx of computation_reduction
   | ComputationRedex of computation_redex
 
-let rec eval_tuple env expr =
+(* Skip annotations and replace top-level variables by their definitions, until
+   the outermost constructor is not one of them. Primitives stay top-level
+   variables. *)
+let rec head env expr =
   match expr.Ast.it with
+  | Ast.Annotated (expr, _) -> head env expr
+  | Ast.TopVar x -> (
+      match Ast.TopVarMap.find x env.top_vars with
+      | Defined expr -> head env expr
+      | Primitive _ -> expr)
+  | _ -> expr
+
+let eval_tuple env expr =
+  match (head env expr).it with
   | Ast.Tuple exprs -> exprs
-  | Ast.Annotated (expr, _) -> eval_tuple env expr
-  | Ast.TopVar x -> eval_tuple env (Ast.TopVarMap.find x env.top_vars)
   | _ -> Error.runtime "Tuple expected but got %t" (Ast.print_expression expr)
 
-let rec eval_variant env expr =
-  match expr.Ast.it with
+let eval_variant env expr =
+  match (head env expr).it with
   | Ast.Variant (lbl, expr) -> (lbl, expr)
-  | Ast.Annotated (expr, _) -> eval_variant env expr
-  | Ast.TopVar x -> eval_variant env (Ast.TopVarMap.find x env.top_vars)
   | _ -> Error.runtime "Variant expected but got %t" (Ast.print_expression expr)
 
-let rec eval_const env expr =
-  match expr.Ast.it with
+let eval_const env expr =
+  match (head env expr).it with
   | Ast.Const c -> c
-  | Ast.Annotated (expr, _) -> eval_const env expr
-  | Ast.TopVar x -> eval_const env (Ast.TopVarMap.find x env.top_vars)
   | _ -> Error.runtime "Const expected but got %t" (Ast.print_expression expr)
 
 let rec match_pattern_with_expression env pat expr =
@@ -62,20 +68,18 @@ let perform_abstraction env abstraction expr =
   let values = match_pattern_with_expression env pat expr |> Array.of_list in
   Bindlib.msubst binder values
 
-let rec eval_function env expr =
-  match expr.Ast.it with
+let eval_function env expr =
+  let expr' = head env expr in
+  match expr'.it with
   | Ast.Lambda abstraction -> fun arg -> perform_abstraction env abstraction arg
   | Ast.RecLambda binder ->
       fun arg ->
-        let abstraction = Bindlib.subst binder expr in
+        let abstraction = Bindlib.subst binder expr' in
         perform_abstraction env abstraction arg
-  | Ast.Annotated (expr, _) -> eval_function env expr
   | Ast.TopVar x -> (
-      match Ast.TopVarMap.find_opt x env.builtin_functions with
-      | Some f -> f
-      | None ->
-          let expr = Ast.TopVarMap.find x env.top_vars in
-          eval_function env expr)
+      match Ast.TopVarMap.find x env.top_vars with
+      | Primitive f -> f
+      | Defined _ -> assert false (* head resolves defined variables *))
   | _ ->
       Error.runtime "Function expected but got %t" (Ast.print_expression expr)
 
@@ -125,11 +129,10 @@ let load_primitive load_state x prim =
     load_state with
     environment =
       {
-        load_state.environment with
-        builtin_functions =
+        top_vars =
           Ast.TopVarMap.add x
-            (Primitives.primitive_function prim)
-            load_state.environment.builtin_functions;
+            (Primitive (Primitives.primitive_function prim))
+            load_state.environment.top_vars;
       };
   }
 
@@ -140,8 +143,8 @@ let load_top_let load_state x expr =
     load_state with
     environment =
       {
-        load_state.environment with
-        top_vars = Ast.TopVarMap.add x expr load_state.environment.top_vars;
+        top_vars =
+          Ast.TopVarMap.add x (Defined expr) load_state.environment.top_vars;
       };
   }
 
