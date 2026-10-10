@@ -6,11 +6,11 @@ To explore asynchronous effects with [AEff](https://github.com/matijapretnar/aef
 
 ## How to install and run Millet?
 
-Install dependencies with
+Install dependencies (listed in `millet.opam`) with
 
-    opam install menhir vdom bindlib ocamlformat=0.29.0
+    opam install . --deps-only --with-dev-setup
 
-then build (requires OCaml >= 5.4.0) with
+then build with
 
     make
 

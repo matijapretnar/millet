@@ -1,0 +1,17 @@
+opam-version: "2.0"
+synopsis: "A pure ML-like functional language and template for building new languages"
+maintainer: "Matija Pretnar <matija@pretnar.info>"
+authors: "Matija Pretnar <matija@pretnar.info>"
+license: "MIT"
+homepage: "https://github.com/matijapretnar/millet"
+bug-reports: "https://github.com/matijapretnar/millet/issues"
+depends: [
+  "ocaml" {>= "5.4.0"}
+  "dune" {>= "2.7"}
+  "menhir"
+  "js_of_ocaml-compiler"
+  "vdom"
+  "bindlib"
+  "ocamlformat" {with-dev-setup & = "0.29.0"}
+]
+build: ["dune" "build" "-p" name "-j" jobs]

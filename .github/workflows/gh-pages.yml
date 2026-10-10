@@ -17,7 +17,7 @@ jobs:
           ocaml-compiler: 5.4.x
 
       - name: Install Opam packages
-        run: opam install menhir vdom ocamlformat=0.29.0
+        run: opam install . --deps-only --with-dev-setup
 
       - name: Build
         run: opam exec -- make release
