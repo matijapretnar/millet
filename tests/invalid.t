@@ -26,7 +26,7 @@
   ======================================================================
   invalid/non_linear_pattern.mlt
   ======================================================================
-  Syntax error (file "invalid/non_linear_pattern.mlt", line 3, char 9):
+  Syntax error (file "invalid/non_linear_pattern.mlt", line 3, char 10):
   Variable a defined multiple times.
   ======================================================================
   invalid/occurs_check.mlt
@@ -51,6 +51,15 @@
   ======================================================================
   Syntax error (file "invalid/shadow_type.mlt", line 3, char 1):
   Type cow defined multiple times.
+  ======================================================================
+  invalid/top_level_annotation_mismatch.mlt
+  ======================================================================
+  Typing error: Cannot unify bool = int
+  ======================================================================
+  invalid/top_level_nested_impure.mlt
+  ======================================================================
+  Syntax error (file "invalid/top_level_nested_impure.mlt", line 1, char 7):
+  Only pure expressions are allowed
   ======================================================================
   invalid/use_undefined_type.mlt
   ======================================================================

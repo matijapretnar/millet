@@ -3,7 +3,6 @@ module type S = sig
 
   val compare : t -> t -> int
   val fresh : string -> t
-  val refresh : t -> t
   val print : t -> Format.formatter -> unit
 end
 
@@ -17,7 +16,6 @@ module Make () : S = struct
     incr count;
     (!count, ann)
 
-  let refresh (_, ann) = fresh ann
   let print (_n, ann) ppf = Format.fprintf ppf "%s" ann
 end
 
