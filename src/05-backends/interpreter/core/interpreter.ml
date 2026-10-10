@@ -4,7 +4,8 @@ module Const = Language.Const
 
 type top_value =
   | Defined of Ast.expression
-  | Primitive of (Ast.expression -> Ast.computation)
+  | Primitive of
+      ((Ast.expression -> Ast.expression) -> Ast.expression -> Ast.computation)
 
 type environment = { top_vars : top_value Ast.TopVarMap.t }
 
@@ -29,6 +30,8 @@ let rec head env expr =
       | Defined expr -> head env expr
       | Primitive _ -> expr)
   | _ -> expr
+
+let value env expr = Primitives.value (head env) expr
 
 let eval_tuple env expr =
   match (head env expr).it with
@@ -78,7 +81,7 @@ let eval_function env expr =
         perform_abstraction env abstraction arg
   | Ast.TopVar x -> (
       match Ast.TopVarMap.find x env.top_vars with
-      | Primitive f -> f
+      | Primitive f -> f (head env)
       | Defined _ -> assert false (* head resolves defined variables *))
   | _ ->
       Error.runtime "Function expected but got %t" (Ast.print_expression expr)

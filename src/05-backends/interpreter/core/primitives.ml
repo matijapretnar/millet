@@ -3,94 +3,76 @@ module Ast = Language.Ast
 module Const = Language.Const
 module Primitives = Language.Primitives
 
+(* Every primitive receives [head], which resolves the outermost constructor of
+   a value (see [Interpreter.head]), and applies it to every level of the value
+   that it inspects. *)
+
 let return_const c = Ast.unlocated (Ast.Return (Ast.unlocated (Ast.Const c)))
 
-let binary_function f expr =
-  match expr.Ast.it with
+let binary_function head f expr =
+  match (head expr).Ast.it with
   | Ast.Tuple [ expr1; expr2 ] -> f expr1 expr2
   | _ -> Error.runtime "Pair expected but got %t" (Ast.print_expression expr)
 
-let rec get_int expr =
-  match expr.Ast.it with
+let get_int head expr =
+  match (head expr).Ast.it with
   | Ast.Const (Const.Integer n) -> n
-  | Ast.Annotated (expr, _) -> get_int expr
   | _ -> Error.runtime "Integer expected but got %t" (Ast.print_expression expr)
 
-let rec get_float expr =
-  match expr.Ast.it with
-  | Ast.Const (Const.Float n) -> n
-  | Ast.Annotated (expr, _) -> get_float expr
+let get_float head expr =
+  match (head expr).Ast.it with
+  | Ast.Const (Const.Float x) -> x
   | _ -> Error.runtime "Float expected but got %t" (Ast.print_expression expr)
 
-let int_to f expr =
-  let n = get_int expr in
-  f n
+let int_to_int f head expr =
+  return_const (Const.Integer (f (get_int head expr)))
 
-let int_int_to f expr =
-  binary_function
-    (fun expr1 expr2 ->
-      let n1 = get_int expr1 in
-      let n2 = get_int expr2 in
-      f n1 n2)
-    expr
+let int_int_to_int f head =
+  binary_function head (fun expr1 expr2 ->
+      return_const (Const.Integer (f (get_int head expr1) (get_int head expr2))))
 
-let float_to f expr =
-  let n = get_float expr in
-  f n
+let float_to_float f head expr =
+  return_const (Const.Float (f (get_float head expr)))
 
-let float_float_to f expr =
-  binary_function
-    (fun expr1 expr2 ->
-      let n1 = get_float expr1 in
-      let n2 = get_float expr2 in
-      f n1 n2)
-    expr
+let float_float_to_float f head =
+  binary_function head (fun expr1 expr2 ->
+      return_const
+        (Const.Float (f (get_float head expr1) (get_float head expr2))))
 
-let int_to_int f = int_to (fun n -> return_const (Const.Integer (f n)))
+let rec compare_values head expr1 expr2 =
+  match ((head expr1).Ast.it, (head expr2).Ast.it) with
+  | Ast.Const c1, Ast.Const c2 -> (
+      match Const.compare c1 c2 with
+      | Const.Less -> -1
+      | Const.Equal -> 0
+      | Const.Greater -> 1)
+  | Ast.Tuple exprs1, Ast.Tuple exprs2 ->
+      List.compare (compare_values head) exprs1 exprs2
+  | Ast.Variant (lbl1, expr1), Ast.Variant (lbl2, expr2) ->
+      let c = Ast.Label.compare lbl1 lbl2 in
+      if c <> 0 then c else Option.compare (compare_values head) expr1 expr2
+  | (Ast.Lambda _ | Ast.RecLambda _ | Ast.TopVar _), _ ->
+      Error.runtime "Incomparable expression %t"
+        (Ast.print_expression ~max_level:0 expr1)
+  | _, _ ->
+      Error.runtime "Incomparable expression %t"
+        (Ast.print_expression ~max_level:0 expr2)
 
-let int_int_to_int f =
-  int_int_to (fun n1 n2 -> return_const (Const.Integer (f n1 n2)))
+let comparison f head =
+  binary_function head (fun expr1 expr2 ->
+      return_const (Const.Boolean (f (compare_values head expr1 expr2) 0)))
 
-let float_to_float f = float_to (fun n -> return_const (Const.Float (f n)))
-
-let float_float_to_float f =
-  float_float_to (fun n1 n2 -> return_const (Const.Float (f n1 n2)))
-
-let rec comparable_expression expr =
-  match expr.Ast.it with
-  | Ast.Var _ -> true
-  | Ast.TopVar _ -> true
-  | Const _ -> true
-  | Annotated (e, _) -> comparable_expression e
-  | Tuple es -> List.for_all comparable_expression es
-  | Variant (_, e) -> Option.fold ~none:true ~some:comparable_expression e
-  | Lambda _ -> false
-  | RecLambda _ -> false
-
-(* Runtime values may carry Annotated wrappers and source locations, which
-   OCaml's structural comparison operators would take into account (e.g.
-   Annotated (3) does not equal 3). This is why we strip both before
-   comparison. *)
-let rec strip_annotations expr =
-  match expr.Ast.it with
-  | Ast.Annotated (expr, _) -> strip_annotations expr
+(* A value with every level resolved, for printing. A function keeps the name
+   under which it was given. *)
+let rec value head expr =
+  let expr' = head expr in
+  match expr'.Ast.it with
   | Ast.Tuple exprs ->
-      Ast.unlocated (Ast.Tuple (List.map strip_annotations exprs))
-  | Ast.Variant (lbl, expr) ->
-      Ast.unlocated (Ast.Variant (lbl, Option.map strip_annotations expr))
-  | it -> Ast.unlocated it
-
-let comparison f =
-  binary_function (fun e1 e2 ->
-      if not (comparable_expression e1) then
-        Error.runtime "Incomparable expression %t"
-          (Ast.print_expression ~max_level:0 e1)
-      else if not (comparable_expression e2) then
-        Error.runtime "Incomparable expression %t"
-          (Ast.print_expression ~max_level:0 e2)
-      else
-        return_const
-          (Const.Boolean (f (strip_annotations e1) (strip_annotations e2))))
+      { expr' with it = Ast.Tuple (List.map (value head) exprs) }
+  | Ast.Variant (lbl, arg) ->
+      { expr' with it = Ast.Variant (lbl, Option.map (value head) arg) }
+  | Ast.Lambda _ | Ast.RecLambda _ -> expr
+  | _ -> expr'
 
 let primitive_function = function
   | Primitives.CompareEq -> comparison ( = )
@@ -112,4 +94,5 @@ let primitive_function = function
   | Primitives.FloatPow -> float_float_to_float ( ** )
   | Primitives.FloatNeg -> float_to_float ( ~-. )
   | Primitives.ToString ->
-      fun expr -> return_const (Const.String (Ast.string_of_expression expr))
+      fun head expr ->
+        return_const (Const.String (Ast.string_of_expression (value head expr)))
