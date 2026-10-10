@@ -7,13 +7,15 @@ let binary_function f = function
   | Ast.Tuple [ expr1; expr2 ] -> f expr1 expr2
   | expr -> Error.runtime "Pair expected but got %t" (Ast.print_expression expr)
 
-let get_int = function
+let rec get_int = function
   | Ast.Const (Const.Integer n) -> n
+  | Ast.Annotated (expr, _) -> get_int expr
   | expr ->
       Error.runtime "Integer expected but got %t" (Ast.print_expression expr)
 
-let get_float = function
+let rec get_float = function
   | Ast.Const (Const.Float n) -> n
+  | Ast.Annotated (expr, _) -> get_float expr
   | expr ->
       Error.runtime "Float expected but got %t" (Ast.print_expression expr)
 
@@ -62,6 +64,16 @@ let rec comparable_expression = function
   | Lambda _ -> false
   | RecLambda _ -> false
 
+(* Runtime values may carry Annotated wrappers which means that OCaml's structural comparator
+   operators view them as different (e.g. Annotated (3) does not equal 3). This makes comparisons
+   false, which is why we strip the annotations before comparison. *)
+let rec strip_annotations = function
+  | Ast.Annotated (expr, _) -> strip_annotations expr
+  | Ast.Tuple exprs -> Ast.Tuple (List.map strip_annotations exprs)
+  | Ast.Variant (lbl, expr) ->
+      Ast.Variant (lbl, Option.map strip_annotations expr)
+  | expr -> expr
+
 let comparison f =
   binary_function (fun e1 e2 ->
       if not (comparable_expression e1) then
@@ -70,7 +82,10 @@ let comparison f =
       else if not (comparable_expression e2) then
         Error.runtime "Incomparable expression %t"
           (Ast.print_expression ~max_level:0 e2)
-      else Ast.Return (Ast.Const (Const.Boolean (f e1 e2))))
+      else
+        Ast.Return
+          (Ast.Const
+             (Const.Boolean (f (strip_annotations e1) (strip_annotations e2)))))
 
 let primitive_function = function
   | Primitives.CompareEq -> comparison ( = )

@@ -1,0 +1,42 @@
+(* Basic types *)
+let b : int = 3
+let b : bool = true
+let b : string = "foo"
+let b : unit = ()
+let b : float = 4.2
+
+
+(* Tuples *)
+let t : int * int = (3,4)
+let t : 'a list * string = ([], "foo")
+
+(* variants *)
+type ('a,'b) cow = Small of 'a | Large of 'b
+let v : (string, 'b) cow = Small "brown"
+let v : ('a, string) cow = Large "white"
+let v: ((int, string list) cow -> (string list, int) cow) = (fun cow -> match cow with Small k -> Large (k + 3) | Large s -> Small ("foo"::s))
+
+(* records *)
+(* Records are not supported.
+type ('a,'b) bull = {small : 'a; large : 'b};;
+{small = 5; large = "foo"};;
+(fun {small=k} -> k + 2);;
+(fun {large=l} -> [] :: l);;
+*)
+
+
+(* Polymorphism *)
+
+let f: ('a -> 'a) = (fun x -> x)
+run ((fun x -> x): ((int -> int) -> int -> int)) ((fun y -> y): (int -> int))
+let f: ('a -> ('a * 'a)) = (fun x -> (x, x))
+let f: (('a -> 'a) * 'a list) = ((fun x -> x), [])
+
+(* let f = ((fun x -> x), (fun x -> x) (fun y -> y)) *)
+
+let f: ('a -> 'b -> 'a) = (fun x y -> x)
+let v: 'a list list list = [[[]]]
+let f: ('a -> 'b -> 'a) = (fun x y -> (fun (a: 'a) -> a) x)
+
+let rec h (x: 'a) : 'a = x
+run h

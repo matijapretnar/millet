@@ -106,7 +106,7 @@ run to_string [1,2,3]
 
 run to_string (1,2,3)
 
-run to_string (fun x -> x)
+run to_string ((fun x -> x): (int -> int))
 
 (* Casting is not supported.
 

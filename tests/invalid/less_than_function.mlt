@@ -1,0 +1,1 @@
+run ((fun x -> x): (int -> int)) < ((fun x -> 2 * x): (int -> int))

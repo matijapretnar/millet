@@ -1,0 +1,7 @@
+(* ----------------------------------------------------------------
+   A mismatch between two structurally different types of the
+   same arity (a tuple vs. a named type application).
+   Error: "Cannot unify int × int = int list"
+   ---------------------------------------------------------------- *)
+let p : int * int = (1, 2)
+let bad : int list = p

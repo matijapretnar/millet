@@ -7,23 +7,24 @@
         "Typing error: Cannot unify int = string".
 *)
 
-let f x = x
+let f (x: 'a) : 'a = x
 run (f 5, f "foo")
 
-let g x y = (fun x y -> x) x y
+let g (x: 'a) (y: 'b) : 'a = (fun (x: 'a) (y: 'b) -> x) x y
 
 run (g 4 "foo", g "foo" 4)
 
-let u = []
+let u : 'a list = []
 
 run (1 :: u, "foo" :: u)
 
-let v = [[]]
+let v : 'a list list = [[]]
 
 run ([] :: v, [2] :: v)
 
-run (fun x -> let h t u = u in h x x)
+run (fun (x: int) -> let h (t: int) (u: int) = u in h x x)
 
-run (fun x -> let h t u = t in h x x)
+run (fun (x: int) -> let h (t: int) (u: int) = t in h x x)
 
-let rec u x = u x
+let rec u (x: 'a) : 'b = u x
+

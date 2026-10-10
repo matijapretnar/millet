@@ -49,6 +49,34 @@ let lookup_ty_param ~loc state = find_symbol ~loc state.ty_params
 let lookup_variable ~loc state = find_symbol ~loc state.variables
 let lookup_label ~loc state = find_symbol ~loc state.labels
 
+let rec strip_annotation ({ Sugared.it = term; at = loc } : Sugared.term) =
+  match term with
+  | Sugared.Annotated (t, ty) ->
+      let inner, tys = strip_annotation t in
+      (inner, ty :: tys)
+  | _ -> (({ Sugared.it = term; at = loc } : Sugared.term), [])
+
+let pattern_annotation { Sugared.it = pat; _ } =
+  match pat with Sugared.PAnnotated (_, ty) -> Some ty | _ -> None
+
+(* The header of a top-level or recursive definition consists of its arguments
+   and its result. All of them must be annotated, and together the annotations
+   give the declared type of the definition. *)
+let rec header_ty x ({ Sugared.it = term; at = loc } : Sugared.term) =
+  match term with
+  | Sugared.Annotated (_, ty) -> ty
+  | Sugared.Lambda (pat, term') -> (
+      match pattern_annotation pat with
+      | Some ty1 ->
+          let ty2 = header_ty x term' in
+          { Sugared.it = Sugared.TyArrow (ty1, ty2); at = loc }
+      | None ->
+          Error.syntax ~loc:pat.at
+            "An argument of the definition %s needs a type annotation" x)
+  | _ ->
+      Error.syntax ~loc
+        "The result of the definition %s needs a type annotation" x
+
 let rec desugar_ty state { Sugared.it = plain_ty; at = loc } =
   desugar_plain_ty ~loc state plain_ty
 
@@ -118,8 +146,7 @@ and desugar_plain_expression ~loc state = function
   | Sugared.Const k -> ([], Untyped.Const k)
   | Sugared.Annotated (term, ty) ->
       let binds, expr = desugar_expression state term in
-      let ty' = desugar_ty state ty in
-      (binds, Untyped.Annotated (expr, ty'))
+      (binds, Untyped.Annotated (expr, desugar_ty state ty))
   | Sugared.Lambda a ->
       let a' = desugar_abstraction state a in
       ([], Untyped.Lambda a')
@@ -203,11 +230,18 @@ and desugar_abstraction state (pat, term) =
   let comp = desugar_computation state' term in
   (pat', comp)
 
-and desugar_let_rec_def state (f, { it = exp; at = loc }) =
+and desugar_let_rec_def state (f, term) =
+  let term, annotations = strip_annotation term in
+  (* A recursive function is always annotated with its full type, so the
+     typechecker can check its body against it. *)
+  let annotations =
+    match annotations with [] -> [ header_ty f term ] | _ -> annotations
+  in
+
   let f' = Untyped.Variable.fresh f in
   let state' = add_fresh_variables state (StringMap.singleton f f') in
   let abs' =
-    match exp with
+    match term.Sugared.it with
     | Sugared.Lambda a -> desugar_abstraction state' a
     | Sugared.Function cs ->
         let x = Untyped.Variable.fresh "rf" in
@@ -215,10 +249,15 @@ and desugar_let_rec_def state (f, { it = exp; at = loc }) =
         let new_match = Untyped.Match (Untyped.Var x, cs) in
         (Untyped.PVar x, new_match)
     | _ ->
-        Error.syntax ~loc
+        Error.syntax ~loc:term.at
           "This kind of expression is not allowed in a recursive definition"
   in
   let expr = Untyped.RecLambda (f', abs') in
+  let expr =
+    List.fold_left
+      (fun expr ty -> Untyped.Annotated (expr, desugar_ty state ty))
+      expr annotations
+  in
   (state', f', expr)
 
 and desugar_expressions state = function
@@ -243,22 +282,44 @@ let add_fresh_ty_names ~loc state vars =
   let ty_names' = List.fold_left aux state.ty_names vars in
   { state with ty_names = ty_names' }
 
-let add_fresh_ty_params state vars =
-  let aux ty_params (x, x') = StringMap.add x x' ty_params in
-  let ty_params' = List.fold_left aux state.ty_params vars in
+let add_fresh_ty_params state params =
+  let aux ty_params p = StringMap.add p (Untyped.TyParam.fresh p) ty_params in
+  let ty_params' = List.fold_left aux state.ty_params params in
   { state with ty_params = ty_params' }
 
-let desugar_ty_def ~loc state = function
-  | Sugared.TyInline ty -> (state, Untyped.TyInline (desugar_ty state ty))
+let rec free_ty_params { Sugared.it = ty; _ } =
+  match ty with
+  | Sugared.TyParam p -> [ p ]
+  | Sugared.TyApply (_, tys) | Sugared.TyTuple tys ->
+      List.concat_map free_ty_params tys
+  | Sugared.TyArrow (ty1, ty2) -> free_ty_params ty1 @ free_ty_params ty2
+  | Sugared.TyConst _ -> []
+
+(* The type params of a top-level definition are the free params of its
+   declared type. The returned state holds them, so that annotations in the
+   body refer to the same params. *)
+let desugar_ty_scheme state x term =
+  let ty = header_ty x term in
+  let params = List.sort_uniq String.compare (free_ty_params ty) in
+  let state' = add_fresh_ty_params state params in
+  let params' = List.map (lookup_ty_param ~loc:ty.at state') params in
+  (state', (params', desugar_ty state' ty))
+
+let desugar_ty_def ~loc (labels, state) = function
+  (* We track labels separately since they will be used in the rest of the program *)
+  | Sugared.TyInline ty -> (labels, Untyped.TyInline (desugar_ty state ty))
   | Sugared.TySum variants ->
-      let aux state (label, ty) =
+      let aux (state, labels) (label, ty) =
         let label' = Untyped.Label.fresh label in
         let ty' = Option.map (desugar_ty state) ty in
         let state' = add_label ~loc state label label' in
-        (state', (label', ty'))
+        ((state', (label, label') :: labels), (label', ty'))
       in
-      let state', variants' = List.fold_map aux state variants in
-      (state', Untyped.TySum variants')
+      (* at the end, we ignore _state' since it is polluted with type params *)
+      let (_state', labels'), variants' =
+        List.fold_map aux (state, labels) variants
+      in
+      (labels', Untyped.TySum variants')
 
 let desugar_command state { Sugared.it = cmd; at = loc } =
   match cmd with
@@ -267,27 +328,45 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
         let ty_name' = Untyped.TyName.fresh ty_name in
         (ty_name, ty_name')
       in
+      (* TODO: the naming state/state'/… is confusing because it is
+         not clear what parts need to be global (type names and
+         labels) and which local (type parameters) *)
       let new_names = List.map def_name defs in
       let state' = add_fresh_ty_names ~loc state new_names in
-      let aux (params, _, ty_def) (_, ty_name') (state', defs) =
-        let params' = List.map (fun a -> (a, Untyped.TyParam.fresh a)) params in
-        let state'' = add_fresh_ty_params state' params' in
-        let state''', ty_def' = desugar_ty_def ~loc state'' ty_def in
-        (state''', (List.map snd params', ty_name', ty_def') :: defs)
+      let aux (params, _, ty_def) (_, ty_name') (labels, state', defs) =
+        let state'' = add_fresh_ty_params state' params in
+        let labels', ty_def' = desugar_ty_def ~loc (labels, state'') ty_def in
+        ( labels',
+          state'',
+          (List.map (lookup_ty_param ~loc state'') params, ty_name', ty_def')
+          :: defs )
       in
-      let state'', defs' = List.fold_right2 aux defs new_names (state', []) in
+      let labels, _, defs' =
+        List.fold_right2 aux defs new_names ([], state', [])
+      in
+      let state'' =
+        List.fold_left
+          (fun s (lbl, lbl') -> add_label ~loc s lbl lbl')
+          state' labels
+      in
       (state'', Untyped.TyDef defs')
   | Sugared.TopLet (x, term) ->
       let x' = Untyped.Variable.fresh x in
       let state' = add_fresh_variables state (StringMap.singleton x x') in
-      let expr = desugar_pure_expression state' term in
-      (state', Untyped.TopLet (x', expr))
+      let state'', ty_sch = desugar_ty_scheme state' x term in
+      let expr = desugar_pure_expression state'' term in
+      (* we ignore state'' in the end since it is polluted with
+      type params, which we needed only to desugar expr *)
+      (state', Untyped.TopLet (x', ty_sch, expr))
   | Sugared.TopDo term ->
       let comp = desugar_computation state term in
       (state, Untyped.TopDo comp)
   | Sugared.TopLetRec (f, term) ->
-      let state', f, expr = desugar_let_rec_def state (f, term) in
-      (state', Untyped.TopLet (f, expr))
+      let state', ty_sch = desugar_ty_scheme state f term in
+      let _state'', f', expr = desugar_let_rec_def state' (f, term) in
+      (* we ignore _state'' since it is polluted with type params *)
+      let state''' = add_fresh_variables state (StringMap.singleton f f') in
+      (state''', Untyped.TopLet (f', ty_sch, expr))
 
 let load_primitive state x prim =
   let str = Language.Primitives.primitive_name prim in

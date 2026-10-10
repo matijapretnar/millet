@@ -1,8 +1,8 @@
 (* ===== Recursion and pattern matching ===== *)
 
-let gauss n = n * (n + 1) / 2
+let gauss (n: int) : int = n * (n + 1) / 2
 
-let rec sum_to =
+let rec sum_to: (int -> int) =
   function
   | 0 -> 0
   | n -> n + sum_to (n - 1)
@@ -10,14 +10,14 @@ let rec sum_to =
 run gauss 100       (* 5050 *)
 run sum_to 100      (* 5050 *)
 
-let rec fact =
+let rec fact: (int -> int) =
   function
   | 0 -> 1
   | n -> n * fact (n - 1)
 
 run fact 10         (* 3628800 *)
 
-let rec gcd m =
+let rec gcd (m: int) : (int -> int) =
   function
   | 0 -> m
   | n -> gcd n (m mod n)
@@ -27,7 +27,7 @@ run gcd 100 75   (* 25 *)
 
 (* ===== Fibonacci: naive vs. tail-recursive ===== *)
 
-let rec fib_slow =
+let rec fib_slow: (int -> int) =
   function
   | 0 -> 0
   | 1 -> 1
@@ -35,8 +35,8 @@ let rec fib_slow =
 
 run fib_slow 20          (* 6765 *)
 
-let fib_fast n =
-  let rec aux n a b =
+let fib_fast (n: int): int =
+  let rec aux (n: int) (a: int) (b: int): int =
     if n = 0 then a else aux (n - 1) b (a + b)
   in
   aux n 0 1
@@ -46,7 +46,7 @@ run fib_fast 50     (* 12586269025 *)
 
 (* ===== Pattern matching on tuples ===== *)
 
-let point_position =
+let point_position: ((int * int) -> string) =
   function
   | (0, 0) -> "origin"
   | (_, 0) -> "x-axis"
@@ -60,7 +60,7 @@ run point_position (1, 3)
 
 (* ===== Option type ===== *)
 
-let safe_div x y =
+let safe_div (x: int) (y: int): int option =
   if y = 0 then None else Some (x / y)
 
 run safe_div 10 2
