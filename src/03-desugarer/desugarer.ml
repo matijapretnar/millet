@@ -278,11 +278,6 @@ and desugar_if_then_else e c1 c2 =
   let a2 = close_abstraction [||] false_p c2 in
   Boxed.match_ e [ a1; a2 ]
 
-let desugar_pure_expression state term =
-  let expression = (desugar_expression state term).expr in
-  if Bindlib.is_closed expression then expression
-  else Error.syntax ~loc:term.at "Only pure expressions are allowed"
-
 let add_label ~loc state label label' =
   let labels' = add_unique ~loc "Label" label label' state.labels in
   { state with labels = labels' }
@@ -331,7 +326,13 @@ let desugar_command state { Sugared.it = cmd; at = loc } =
       let state' =
         { state with top_vars = StringMap.add x x' state.top_vars }
       in
-      let expr_box = desugar_pure_expression state' term in
+      let expr_box = (desugar_expression state' term).expr in
+      (* Desugaring moves every computation out of an expression and binds its
+         result to a fresh variable, which stays free in the expression. No
+         local variables are in scope at top level, so the expression is closed
+         exactly when it is pure. *)
+      if not (Bindlib.is_closed expr_box) then
+        Error.syntax ~loc:term.at "Only pure expressions are allowed";
       (state', Untyped.TopLet (x', Bindlib.unbox expr_box))
   | Sugared.TopDo term ->
       let comp_box = desugar_computation state term in
