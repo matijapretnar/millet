@@ -121,36 +121,36 @@ let unfold state ty_name args =
       in
       Ast.substitute_ty subst ty
 
-let bind subst a t =
+let bind ?loc subst a t =
   if occurs subst a t then
-    Error.typing
+    Error.typing ?loc
       "This expression has a type that would require an infinite type"
   else subst := Ast.TyParamMap.add a t !subst
 
-let rec unify state subst t1 t2 =
+let rec unify ?loc state subst t1 t2 =
   let t1 = resolve subst t1 and t2 = resolve subst t2 in
   match (t1, t2) with
   | t1, t2 when t1 = t2 -> ()
   | Ast.TyParam a, t when not (Ast.TyParamSet.mem a state.rigid_params) ->
-      bind subst a t
+      bind ?loc subst a t
   | t, Ast.TyParam a when not (Ast.TyParamSet.mem a state.rigid_params) ->
-      bind subst a t
+      bind ?loc subst a t
   | Ast.TyApply (ty_name1, args1), Ast.TyApply (ty_name2, args2)
     when ty_name1 = ty_name2 && List.length args1 = List.length args2 ->
-      List.iter2 (unify state subst) args1 args2
+      List.iter2 (unify ?loc state subst) args1 args2
   | Ast.TyApply (ty_name, args), t when is_transparent_type state ty_name ->
-      unify state subst (unfold state ty_name args) t
+      unify ?loc state subst (unfold state ty_name args) t
   | t, Ast.TyApply (ty_name, args) when is_transparent_type state ty_name ->
-      unify state subst t (unfold state ty_name args)
+      unify ?loc state subst t (unfold state ty_name args)
   | Ast.TyTuple tys1, Ast.TyTuple tys2 when List.length tys1 = List.length tys2
     ->
-      List.iter2 (unify state subst) tys1 tys2
+      List.iter2 (unify ?loc state subst) tys1 tys2
   | Ast.TyArrow (t1, t1'), Ast.TyArrow (t2, t2') ->
-      unify state subst t1 t2;
-      unify state subst t1' t2'
+      unify ?loc state subst t1 t2;
+      unify ?loc state subst t1' t2'
   | t1, t2 ->
       let print_param = Ast.new_print_param () in
-      Error.typing "Cannot unify %t = %t"
+      Error.typing ?loc "Cannot unify %t = %t"
         (Ast.print_ty print_param t1)
         (Ast.print_ty print_param t2)
 
@@ -202,6 +202,9 @@ let infer_variant state lbl =
 exception Uninferable_pattern
 
 let rec check_pattern state subst pat ty =
+  check_plain_pattern ~loc:pat.Ast.at state subst pat.it ty
+
+and check_plain_pattern ~loc state subst pat ty =
   match pat with
   | Ast.PVar -> [ ty ]
   | Ast.PAs pat -> check_pattern state subst pat ty @ [ ty ]
@@ -211,17 +214,20 @@ let rec check_pattern state subst pat ty =
       | Some tys -> List.concat (List.map2 (check_pattern state subst) pats tys)
       | None ->
           let print_param = Ast.new_print_param () in
-          Error.typing "Expected a tuple pattern of type %t, got a %d-tuple"
+          Error.typing ?loc
+            "Expected a tuple pattern of type %t, got a %d-tuple"
             (Ast.print_ty print_param (resolve subst ty))
             (List.length pats))
-  | (Ast.PAnnotated _ | Ast.PConst _ | Ast.PVariant _) as pat ->
+  | Ast.PAnnotated _ | Ast.PConst _ | Ast.PVariant _ ->
       (* Subsumption: infer, then check the inferred type agrees. *)
-      let tys, ty' = infer_pattern state subst pat in
-      unify state subst ty' ty;
+      let tys, ty' = infer_plain_pattern ~loc state subst pat in
+      unify ?loc state subst ty' ty;
       tys
 
 and infer_pattern state subst pat =
-  match pat with
+  infer_plain_pattern ~loc:pat.Ast.at state subst pat.it
+
+and infer_plain_pattern ~loc state subst = function
   | Ast.PAnnotated (pat, ty) -> (check_pattern state subst pat ty, ty)
   | Ast.PConst c -> ([], Ast.TyConst (Const.infer_ty c))
   | Ast.PAs pat ->
@@ -236,7 +242,7 @@ and infer_pattern state subst pat =
       | None, None -> ([], ty_out)
       | Some ty_in, Some pat -> (check_pattern state subst pat ty_in, ty_out)
       | None, Some _ | Some _, None ->
-          Error.typing "Variant optional argument mismatch")
+          Error.typing ?loc "Variant optional argument mismatch")
   | Ast.PVar | Ast.PNonbinding -> raise Uninferable_pattern
 
 (* Check the pattern of an abstraction against [ty], and return the body with
@@ -253,7 +259,7 @@ let infer_abstraction_pattern state subst (pat, binder) =
   let tys, ty =
     try infer_pattern state subst pat
     with Uninferable_pattern ->
-      Error.typing
+      Error.typing ?loc:pat.Ast.at
         "Cannot infer the type of the pattern %t; it needs a type annotation"
         (Ast.print_pattern vars pat)
   in
@@ -263,7 +269,10 @@ let infer_abstraction_pattern state subst (pat, binder) =
 (* Expressions. *)
 (* ------------------------------------------------------------------ *)
 
-let rec infer_expression state subst = function
+let rec infer_expression state subst expr =
+  infer_plain_expression ~loc:expr.Ast.at state subst expr.it
+
+and infer_plain_expression ~loc state subst = function
   | Ast.Var x -> IntMap.find (Bindlib.uid_of x) state.local_vars
   | Ast.TopVar x ->
       let params, ty = Ast.TopVarMap.find x state.top_vars in
@@ -281,7 +290,7 @@ let rec infer_expression state subst = function
       Ast.TyArrow (ty1, ty2)
   | Ast.RecLambda binder ->
       let f, _ = Bindlib.unbind binder in
-      Error.typing
+      Error.typing ?loc
         "Cannot infer the type of the recursive function %s; it needs a type \
          annotation"
         (Bindlib.name_of f)
@@ -293,9 +302,12 @@ let rec infer_expression state subst = function
           check_expression state subst expr ty_in;
           ty_out
       | None, Some _ | Some _, None ->
-          Error.typing "Variant optional argument mismatch")
+          Error.typing ?loc "Variant optional argument mismatch")
 
 and check_expression state subst expr ty =
+  check_plain_expression ~loc:expr.Ast.at state subst expr.it ty
+
+and check_plain_expression ~loc state subst expr ty =
   match expr with
   | Ast.Lambda abs -> (
       match match_arrow state subst ty with
@@ -304,7 +316,7 @@ and check_expression state subst expr ty =
           check_computation state' subst comp ty2
       | None ->
           let print_param = Ast.new_print_param () in
-          Error.typing "This function is expected to have type %t"
+          Error.typing ?loc "This function is expected to have type %t"
             (Ast.print_ty print_param (resolve subst ty)))
   | Ast.RecLambda binder -> (
       match match_arrow state subst ty with
@@ -317,25 +329,29 @@ and check_expression state subst expr ty =
           check_computation state'' subst comp ty2
       | None ->
           let print_param = Ast.new_print_param () in
-          Error.typing "This recursive function is expected to have type %t"
+          Error.typing ?loc
+            "This recursive function is expected to have type %t"
             (Ast.print_ty print_param (resolve subst ty)))
   | Ast.Tuple exprs -> (
       match match_tuple state subst (List.length exprs) ty with
       | Some tys -> List.iter2 (check_expression state subst) exprs tys
       | None ->
           let print_param = Ast.new_print_param () in
-          Error.typing "This tuple is expected to have type %t"
+          Error.typing ?loc "This tuple is expected to have type %t"
             (Ast.print_ty print_param (resolve subst ty)))
   | _ ->
       (* Subsumption: infer, then check the inferred type agrees. *)
-      let ty' = infer_expression state subst expr in
-      unify state subst ty' ty
+      let ty' = infer_plain_expression ~loc state subst expr in
+      unify ?loc state subst ty' ty
 
 (* ------------------------------------------------------------------ *)
 (* Computations. *)
 (* ------------------------------------------------------------------ *)
 
-and infer_computation state subst = function
+and infer_computation state subst comp =
+  infer_plain_computation ~loc:comp.Ast.at state subst comp.it
+
+and infer_plain_computation ~loc state subst = function
   | Ast.Return expr -> infer_expression state subst expr
   | Ast.Do (comp1, abs) ->
       let ty1 = infer_computation state subst comp1 in
@@ -349,10 +365,10 @@ and infer_computation state subst = function
           ty_res
       | None ->
           let print_param = Ast.new_print_param () in
-          Error.typing "This expression of type %t is not a function"
+          Error.typing ?loc "This expression of type %t is not a function"
             (Ast.print_ty print_param (resolve subst ty1)))
   | Ast.Match (_, []) ->
-      Error.typing
+      Error.typing ?loc
         "Cannot infer the type of a match expression with no cases; an \
          annotation is required"
   | Ast.Match (expr, abs1 :: cases) ->
@@ -371,6 +387,9 @@ and infer_computation state subst = function
       ty
 
 and check_computation state subst comp ty =
+  check_plain_computation ~loc:comp.Ast.at state subst comp.it ty
+
+and check_plain_computation ~loc state subst comp ty =
   match comp with
   | Ast.Return expr -> check_expression state subst expr ty
   | Ast.Do (comp1, abs) ->
@@ -386,9 +405,9 @@ and check_computation state subst comp ty =
           in
           check_computation state' subst comp ty)
         cases
-  | comp ->
-      let ty' = infer_computation state subst comp in
-      unify state subst ty' ty
+  | Ast.Apply _ ->
+      let ty' = infer_plain_computation ~loc state subst comp in
+      unify ?loc state subst ty' ty
 
 (* ------------------------------------------------------------------ *)
 (* Entry points required by the user interface. *)

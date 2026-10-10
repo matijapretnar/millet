@@ -6,25 +6,25 @@ let print_mark ppf = Format.pp_print_as ppf 0 tag_marker
 
 let print_computation_redex ?max_level red c ppf =
   let print ?at_level = Print.print ?max_level ?at_level ppf in
-  match (red, c) with
+  match (red, c.Ast.it) with
   | Interpreter.DoReturn, Ast.Do (c1, a) ->
       let pat, binder = a in
       let vars, c2 = Bindlib.unmbind binder in
       print "@[<hov>%tlet@[<hov>@ %t =@ %t@]%t in@ %t@]" print_mark
         (Ast.print_pattern vars pat)
         (Ast.print_computation c1) print_mark (Ast.print_computation c2)
-  | _, comp ->
+  | _, _ ->
       print "%t%t%t" print_mark
-        (fun ppf -> Ast.print_computation ?max_level comp ppf)
+        (fun ppf -> Ast.print_computation ?max_level c ppf)
         print_mark
 
 let rec print_computation_reduction ?max_level red c ppf =
   let print ?at_level = Print.print ?max_level ?at_level ppf in
-  match (red, c) with
+  match (red, c.Ast.it) with
   | Interpreter.DoCtx red, Ast.Do (c1, a) -> (
       let pat, binder = a in
       let vars, c2 = Bindlib.unmbind binder in
-      match pat with
+      match pat.it with
       | Ast.PNonbinding ->
           print "@[<hov>%t;@ %t@]"
             (print_computation_reduction red c1)
@@ -34,7 +34,7 @@ let rec print_computation_reduction ?max_level red c ppf =
             (Ast.print_pattern vars pat)
             (print_computation_reduction red c1)
             (Ast.print_computation c2))
-  | ComputationRedex redex, c -> print_computation_redex ?max_level redex c ppf
+  | ComputationRedex redex, _ -> print_computation_redex ?max_level redex c ppf
   | _, _ -> assert false
 
 let split_string sep str =

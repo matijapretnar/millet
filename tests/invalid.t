@@ -14,7 +14,8 @@
   ======================================================================
   invalid/invalid_match_type.mlt
   ======================================================================
-  Typing error: Cannot unify b = a list
+  Typing error (file "invalid/invalid_match_type.mlt", line 6, char 7):
+  Cannot unify b = a list
   ======================================================================
   invalid/less_than_function.mlt
   ======================================================================
@@ -31,11 +32,13 @@
   ======================================================================
   invalid/occurs_check.mlt
   ======================================================================
-  Typing error: This expression has a type that would require an infinite type
+  Typing error (file "invalid/occurs_check.mlt", line 1, char 23):
+  This expression has a type that would require an infinite type
   ======================================================================
   invalid/polymorphism_id_id.mlt
   ======================================================================
-  Typing error: Cannot unify string = int
+  Typing error (file "invalid/polymorphism_id_id.mlt", line 3, char 18):
+  Cannot unify string = int
   ======================================================================
   invalid/self_reference_without_rec.mlt
   ======================================================================
@@ -54,7 +57,8 @@
   ======================================================================
   invalid/top_level_annotation_mismatch.mlt
   ======================================================================
-  Typing error: Cannot unify bool = int
+  Typing error (file "invalid/top_level_annotation_mismatch.mlt", line 1, char 17):
+  Cannot unify bool = int
   ======================================================================
   invalid/top_level_nested_impure.mlt
   ======================================================================
@@ -68,19 +72,23 @@
   ======================================================================
   invalid/typechecker/bare_lambda.mlt
   ======================================================================
-  Typing error: Cannot infer the type of the pattern x; it needs a type annotation
+  Typing error (file "invalid/typechecker/bare_lambda.mlt", line 6, char 10):
+  Cannot infer the type of the pattern x; it needs a type annotation
   ======================================================================
   invalid/typechecker/checking_lambda_no_arrow_type.mlt
   ======================================================================
-  Typing error: This function is expected to have type int
+  Typing error (file "invalid/typechecker/checking_lambda_no_arrow_type.mlt", line 6, char 6):
+  This function is expected to have type int
   ======================================================================
   invalid/typechecker/checking_recursive_lambda_no_arrow_type.mlt
   ======================================================================
-  Typing error: This recursive function is expected to have type int
+  Typing error (file "invalid/typechecker/checking_recursive_lambda_no_arrow_type.mlt", line 6, char 11):
+  This recursive function is expected to have type int
   ======================================================================
   invalid/typechecker/empty_match.mlt
   ======================================================================
-  Typing error: Cannot infer the type of a match expression with no cases; an annotation is required
+  Typing error (file "invalid/typechecker/empty_match.mlt", line 7, char 5):
+  Cannot infer the type of a match expression with no cases; an annotation is required
   ======================================================================
   invalid/typechecker/invalid_type_constructor.mlt
   ======================================================================
@@ -88,19 +96,23 @@
   ======================================================================
   invalid/typechecker/invalid_variant_argument.mlt
   ======================================================================
-  Typing error: Variant optional argument mismatch
+  Typing error (file "invalid/typechecker/invalid_variant_argument.mlt", line 7, char 5):
+  Variant optional argument mismatch
   ======================================================================
   invalid/typechecker/non_lambda_application.mlt
   ======================================================================
-  Typing error: This expression of type int is not a function
+  Typing error (file "invalid/typechecker/non_lambda_application.mlt", line 5, char 5):
+  This expression of type int is not a function
   ======================================================================
   invalid/typechecker/occurs_check_failure.mlt
   ======================================================================
-  Typing error: This expression has a type that would require an infinite type
+  Typing error (file "invalid/typechecker/occurs_check_failure.mlt", line 8, char 25):
+  This expression has a type that would require an infinite type
   ======================================================================
   invalid/typechecker/plain_type_mismatch.mlt
   ======================================================================
-  Typing error: Cannot unify bool = int
+  Typing error (file "invalid/typechecker/plain_type_mismatch.mlt", line 5, char 10):
+  Cannot unify bool = int
   ======================================================================
   invalid/typechecker/recursive_lambda_no_annotation.mlt
   ======================================================================
@@ -109,16 +121,20 @@
   ======================================================================
   invalid/typechecker/structural_type_mismatch.mlt
   ======================================================================
-  Typing error: Cannot unify int × int = int list
+  Typing error (file "invalid/typechecker/structural_type_mismatch.mlt", line 7, char 22):
+  Cannot unify int × int = int list
   ======================================================================
   invalid/typechecker/top_level_rigid_type_param.mlt
   ======================================================================
-  Typing error: Cannot unify α = int
+  Typing error (file "invalid/typechecker/top_level_rigid_type_param.mlt", line 6, char 24):
+  Cannot unify α = int
   ======================================================================
   invalid/typechecker/tuple_against_non_tuple_type.mlt
   ======================================================================
-  Typing error: This tuple is expected to have type int list
+  Typing error (file "invalid/typechecker/tuple_against_non_tuple_type.mlt", line 5, char 22):
+  This tuple is expected to have type int list
   ======================================================================
   invalid/typechecker/tuple_arity_mismatch.mlt
   ======================================================================
-  Typing error: Expected a tuple pattern of type int × int, got a 3-tuple
+  Typing error (file "invalid/typechecker/tuple_arity_mismatch.mlt", line 7, char 10):
+  Expected a tuple pattern of type int × int, got a 3-tuple

@@ -95,7 +95,16 @@ module TopVarMap = Map.Make (TopVar)
 
 type top_var = TopVar.t
 
-type pattern =
+type 'a annotated = { it : 'a; at : Location.t option }
+(** A node of a term together with its source location. Nodes created at runtime
+    have no location. *)
+
+let located loc it = { it; at = Some loc }
+let unlocated it = { it; at = None }
+
+type pattern = plain_pattern annotated
+
+and plain_pattern =
   | PVar
   | PAnnotated of pattern * ty
   | PAs of pattern
@@ -105,8 +114,9 @@ type pattern =
   | PNonbinding
 
 type variable = expression Bindlib.var
+and expression = plain_expression annotated
 
-and expression =
+and plain_expression =
   | Var of variable
   | TopVar of top_var
   | Const of Const.t
@@ -116,7 +126,9 @@ and expression =
   | Lambda of abstraction
   | RecLambda of (expression, abstraction) Bindlib.binder
 
-and computation =
+and computation = plain_computation annotated
+
+and plain_computation =
   | Return of expression
   | Do of computation * abstraction
   | Match of expression * abstraction list
@@ -144,7 +156,7 @@ let rec print_pattern ?max_level vars p ppf =
   in
   let rec print_pattern_inner ?max_level p ppf =
     let print ?at_level = Print.print ?max_level ?at_level ppf in
-    match p with
+    match p.it with
     | PVar -> print "%s" (Bindlib.name_of (next_var ()))
     | PAs p ->
         print "%t as %t" (print_pattern_inner p) (fun ppf ->
@@ -154,7 +166,8 @@ let rec print_pattern ?max_level vars p ppf =
     | PTuple lst -> Print.print_tuple print_pattern_inner lst ppf
     | PVariant (lbl, None) when lbl = nil_label -> print "[]"
     | PVariant (lbl, None) -> print "%t" (Label.print lbl)
-    | PVariant (lbl, Some (PTuple [ v1; v2 ])) when lbl = cons_label ->
+    | PVariant (lbl, Some { it = PTuple [ v1; v2 ]; _ }) when lbl = cons_label
+      ->
         print "%t::%t" (print_pattern_inner v1) (print_pattern_inner v2)
     | PVariant (lbl, Some p) ->
         print ~at_level:1 "%t @[<hov>%t@]" (Label.print lbl)
@@ -165,7 +178,7 @@ let rec print_pattern ?max_level vars p ppf =
 
 and print_expression ?max_level e ppf =
   let print ?at_level = Print.print ?max_level ?at_level ppf in
-  match e with
+  match e.it with
   | Var x -> print "%s" (Bindlib.name_of x)
   | TopVar x -> print "%t" (TopVar.print x)
   | Const c -> print "%t" (Const.print c)
@@ -173,7 +186,7 @@ and print_expression ?max_level e ppf =
   | Tuple lst -> Print.print_tuple print_expression lst ppf
   | Variant (lbl, None) when lbl = nil_label -> print "[]"
   | Variant (lbl, None) -> print "%t" (Label.print lbl)
-  | Variant (lbl, Some (Tuple [ v1; v2 ])) when lbl = cons_label ->
+  | Variant (lbl, Some { it = Tuple [ v1; v2 ]; _ }) when lbl = cons_label ->
       print ~at_level:1 "%t::%t"
         (print_expression ~max_level:0 v1)
         (print_expression ~max_level:1 v2)
@@ -188,13 +201,13 @@ and print_expression ?max_level e ppf =
 
 and print_computation ?max_level c ppf =
   let print ?at_level = Print.print ?max_level ?at_level ppf in
-  match c with
+  match c.it with
   | Return e -> print ~at_level:1 "return %t" (print_expression ~max_level:0 e)
   | Do (c1, a) -> (
       let pat, binder = a in
       let vars, c2 = Bindlib.unmbind binder in
       let print_rest ppf = print_computation c2 ppf in
-      match pat with
+      match pat.it with
       | PNonbinding ->
           print "@[<hov>%t;@ %t@]" (print_computation c1) print_rest
       | _ ->

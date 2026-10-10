@@ -25,6 +25,8 @@ The expression/computation split simplifies the semantics and makes it easier to
 
 The core AST lives in `src/01-language/ast.ml`.
 
+Every expression, computation and pattern is a record `{ it; at }`: `it` is the node itself, shown in the tables below, and `at` is its source location, which the typechecker uses to report errors. Nodes that the desugarer generates get the location of the source term they come from, and nodes created at runtime have no location (`at = None`).
+
 ### Expressions and computations
 
 Everything in the surface language desugars to a small set of core constructs.

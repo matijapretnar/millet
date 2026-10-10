@@ -68,7 +68,7 @@ Stage          | Directory                      | Description
 -------------- | ------------------------------ | -----------
 Language       | `src/01-language/`             | Core AST, constants, and primitive operations
 Parser         | `src/02-parser/`               | Source text → sugared AST (string names, locations)
-Desugarer      | `src/03-desugarer/`            | Sugared AST → core AST (symbolic names, no locations)
+Desugarer      | `src/03-desugarer/`            | Sugared AST → core AST (binders and symbols, locations)
 Typechecker    | `src/04-typechecker/`          | Bidirectional type checking
 Backends       | `src/05-backends/`             | Execution backends (small-step interpreter, compilation, …)
 User interface | `src/06-user-interface/`       | CLI and web drivers, standard library

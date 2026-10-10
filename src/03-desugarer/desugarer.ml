@@ -53,29 +53,61 @@ let initial_state =
 let no_wrap comp = comp
 let boxed_expression ?(wrap = no_wrap) expr = { wrap; expr }
 
+(* Bindlib creates the occurrences of a variable with the function given to
+   [Bindlib.new_var], which knows no location. [Boxed.var] adds the location of
+   each occurrence afterwards. *)
+let new_variable name =
+  Bindlib.new_var (fun x -> Untyped.unlocated (Untyped.Var x)) name
+
 module Boxed = struct
-  let annotated t ty = Bindlib.box_apply (fun t -> Untyped.Annotated (t, ty)) t
+  let located loc it = Bindlib.box (Untyped.located loc it)
 
-  let tuple ts =
-    Bindlib.box_apply (fun ts -> Untyped.Tuple ts) (Bindlib.box_list ts)
+  let var loc x =
+    Bindlib.box_apply
+      (fun e -> { e with Untyped.at = Some loc })
+      (Bindlib.box_var x)
 
-  let variant l e_opt =
+  let annotated loc t ty =
+    Bindlib.box_apply
+      (fun t -> Untyped.located loc (Untyped.Annotated (t, ty)))
+      t
+
+  let tuple loc ts =
+    Bindlib.box_apply
+      (fun ts -> Untyped.located loc (Untyped.Tuple ts))
+      (Bindlib.box_list ts)
+
+  let variant loc l e_opt =
     match e_opt with
-    | None -> Bindlib.box (Untyped.Variant (l, None))
-    | Some e -> Bindlib.box_apply (fun e -> Untyped.Variant (l, Some e)) e
+    | None -> located loc (Untyped.Variant (l, None))
+    | Some e ->
+        Bindlib.box_apply
+          (fun e -> Untyped.located loc (Untyped.Variant (l, Some e)))
+          e
 
-  let lambda a = Bindlib.box_apply (fun a -> Untyped.Lambda a) a
-  let rec_lambda b = Bindlib.box_apply (fun b -> Untyped.RecLambda b) b
-  let return e = Bindlib.box_apply (fun e -> Untyped.Return e) e
-  let do_ c1 a = Bindlib.box_apply2 (fun c1 a -> Untyped.Do (c1, a)) c1 a
+  let lambda loc a =
+    Bindlib.box_apply (fun a -> Untyped.located loc (Untyped.Lambda a)) a
 
-  let match_ e cases =
+  let rec_lambda loc b =
+    Bindlib.box_apply (fun b -> Untyped.located loc (Untyped.RecLambda b)) b
+
+  let return loc e =
+    Bindlib.box_apply (fun e -> Untyped.located loc (Untyped.Return e)) e
+
+  let do_ loc c1 a =
     Bindlib.box_apply2
-      (fun e cases -> Untyped.Match (e, cases))
+      (fun c1 a -> Untyped.located loc (Untyped.Do (c1, a)))
+      c1 a
+
+  let match_ loc e cases =
+    Bindlib.box_apply2
+      (fun e cases -> Untyped.located loc (Untyped.Match (e, cases)))
       e (Bindlib.box_list cases)
 
-  let apply e1 e2 =
-    Bindlib.box_apply2 (fun e1 e2 -> Untyped.Apply (e1, e2)) e1 e2
+  let apply loc e1 e2 =
+    Bindlib.box_apply2
+      (fun e1 e2 -> Untyped.located loc (Untyped.Apply (e1, e2)))
+      e1 e2
 end
 
 let find_symbol ~loc map name =
@@ -91,8 +123,8 @@ let lookup_label ~loc state = find_symbol ~loc state.labels
 
 let lookup_term ~loc state name =
   if StringMap.mem name state.local_vars then
-    Bindlib.box_var (lookup_local_var ~loc state name)
-  else Bindlib.box (Untyped.TopVar (lookup_top_var ~loc state name))
+    Boxed.var loc (lookup_local_var ~loc state name)
+  else Boxed.located loc (Untyped.TopVar (lookup_top_var ~loc state name))
 
 let pattern_annotation { Sugared.it = pat; _ } =
   match pat with Sugared.PAnnotated (_, ty) -> Some ty | _ -> None
@@ -136,9 +168,12 @@ and desugar_plain_ty ~loc state = function
   | Sugared.TyConst c -> Untyped.TyConst c
 
 let rec desugar_pattern state vars { Sugared.it = pat; at = loc } =
-  match pat with
+  let vars, binders, pat' = desugar_plain_pattern ~loc state vars pat in
+  (vars, binders, Untyped.located loc pat')
+
+and desugar_plain_pattern ~loc state vars = function
   | Sugared.PVar x ->
-      let x_var = Bindlib.new_var (fun x -> Untyped.Var x) x in
+      let x_var = new_variable x in
       (add_unique ~loc "Variable" x x_var vars, [ x_var ], Untyped.PVar)
   | Sugared.PAnnotated (pat, ty) ->
       let vars, binders, pat' = desugar_pattern state vars pat
@@ -146,7 +181,7 @@ let rec desugar_pattern state vars { Sugared.it = pat; at = loc } =
       (vars, binders, Untyped.PAnnotated (pat', ty'))
   | Sugared.PAs (pat, x) ->
       let vars, binders, pat' = desugar_pattern state vars pat in
-      let x_var = Bindlib.new_var (fun x -> Untyped.Var x) x in
+      let x_var = new_variable x in
       ( add_unique ~loc "Variable" x x_var vars,
         binders @ [ x_var ],
         Untyped.PAs pat' )
@@ -178,87 +213,98 @@ let close_abstraction vars pat comp =
   Bindlib.box_apply (fun binder -> (pat, binder)) (Bindlib.bind_mvar vars comp)
 
 let rec desugar_expression state { Sugared.it = term; at = loc } =
-  match term with
+  desugar_plain_expression ~loc state term
+
+and desugar_plain_expression ~loc state = function
   | Sugared.Var x -> boxed_expression (lookup_term ~loc state x)
-  | Sugared.Const k -> boxed_expression (Bindlib.box (Untyped.Const k))
+  | Sugared.Const k -> boxed_expression (Boxed.located loc (Untyped.Const k))
   | Sugared.Annotated (term, ty) ->
       let expr = desugar_expression state term in
       let ty' = desugar_ty state ty in
-      { expr with expr = Boxed.annotated expr.expr ty' }
+      { expr with expr = Boxed.annotated loc expr.expr ty' }
   | Sugared.Tuple ts ->
       let expressions = List.map (desugar_expression state) ts in
       let wrap comp =
         List.fold_right (fun { wrap; _ } comp -> wrap comp) expressions comp
       in
       let exprs = List.map (fun { expr; _ } -> expr) expressions in
-      boxed_expression ~wrap (Boxed.tuple exprs)
+      boxed_expression ~wrap (Boxed.tuple loc exprs)
   | Sugared.Variant (lbl, None) ->
       let lbl' = lookup_label ~loc state lbl in
-      boxed_expression (Boxed.variant lbl' None)
+      boxed_expression (Boxed.variant loc lbl' None)
   | Sugared.Variant (lbl, Some t) ->
       let expr = desugar_expression state t in
       let lbl' = lookup_label ~loc state lbl in
-      { expr with expr = Boxed.variant lbl' (Some expr.expr) }
+      { expr with expr = Boxed.variant loc lbl' (Some expr.expr) }
   | Sugared.Lambda a ->
       let a = desugar_abstraction state a in
-      boxed_expression (Boxed.lambda a)
+      boxed_expression (Boxed.lambda loc a)
   | Sugared.Function cases ->
-      boxed_expression (Boxed.lambda (desugar_function_abstraction state cases))
+      boxed_expression
+        (Boxed.lambda loc (desugar_function_abstraction ~loc state cases))
   | ( Sugared.Apply _ | Sugared.Match _ | Sugared.Let _ | Sugared.LetRec _
     | Sugared.Conditional _ ) as term ->
-      let comp = desugar_computation state { Sugared.it = term; at = loc } in
-      let b_var = Bindlib.new_var (fun x -> Untyped.Var x) "b" in
-      let b_box = Bindlib.box_var b_var in
+      let comp = desugar_plain_computation ~loc state term in
+      let b_var = new_variable "b" in
+      let b_box = Boxed.var loc b_var in
       let wrap c_cont =
-        let abstraction = close_abstraction [| b_var |] Untyped.PVar c_cont in
-        Boxed.do_ comp abstraction
+        let abstraction =
+          close_abstraction [| b_var |]
+            (Untyped.located loc Untyped.PVar)
+            c_cont
+        in
+        Boxed.do_ loc comp abstraction
       in
       boxed_expression ~wrap b_box
 
 and desugar_computation state { Sugared.it = term; at = loc } =
-  match term with
+  desugar_plain_computation ~loc state term
+
+and desugar_plain_computation ~loc state = function
   | Sugared.Apply
       ({ it = Sugared.Var "(&&)"; _ }, { it = Sugared.Tuple [ t1; t2 ]; _ }) ->
       let left = desugar_expression state t1 in
       let c1 = desugar_computation state t2 in
       let c2 =
-        Boxed.return (Bindlib.box (Untyped.Const (Const.Boolean false)))
+        Boxed.return loc
+          (Boxed.located loc (Untyped.Const (Const.Boolean false)))
       in
-      left.wrap (desugar_if_then_else left.expr c1 c2)
+      left.wrap (desugar_if_then_else loc left.expr c1 c2)
   | Sugared.Apply
       ({ it = Sugared.Var "(||)"; _ }, { it = Sugared.Tuple [ t1; t2 ]; _ }) ->
       let left = desugar_expression state t1 in
       let c1 =
-        Boxed.return (Bindlib.box (Untyped.Const (Const.Boolean true)))
+        Boxed.return loc
+          (Boxed.located loc (Untyped.Const (Const.Boolean true)))
       in
       let c2 = desugar_computation state t2 in
-      left.wrap (desugar_if_then_else left.expr c1 c2)
+      left.wrap (desugar_if_then_else loc left.expr c1 c2)
   | Sugared.Apply (t1, t2) ->
       let fn = desugar_expression state t1 in
       let arg = desugar_expression state t2 in
-      fn.wrap (arg.wrap (Boxed.apply fn.expr arg.expr))
+      fn.wrap (arg.wrap (Boxed.apply loc fn.expr arg.expr))
   | Sugared.Match (t, cs) ->
       let expr = desugar_expression state t in
       let cs' = List.map (desugar_abstraction state) cs in
-      expr.wrap (Boxed.match_ expr.expr cs')
+      expr.wrap (Boxed.match_ loc expr.expr cs')
   | Sugared.Conditional (t, t1, t2) ->
       let expr = desugar_expression state t in
       let c1 = desugar_computation state t1 in
       let c2 = desugar_computation state t2 in
-      expr.wrap (desugar_if_then_else expr.expr c1 c2)
+      expr.wrap (desugar_if_then_else loc expr.expr c1 c2)
   | Sugared.Let (pat, t1, t2) ->
       let c1 = desugar_computation state t1 in
       let a = desugar_abstraction state (pat, t2) in
-      Boxed.do_ c1 a
+      Boxed.do_ loc c1 a
   | Sugared.LetRec (f, t1, t2) ->
       let rec_expr = desugar_let_rec_def state (f, t1) in
       let a_let =
         desugar_abstraction state ({ Sugared.it = Sugared.PVar f; at = loc }, t2)
       in
-      Boxed.do_ (Boxed.return rec_expr) a_let
+      Boxed.do_ loc (Boxed.return loc rec_expr) a_let
   | term ->
-      let expr = desugar_expression state { Sugared.it = term; at = loc } in
-      expr.wrap (Boxed.return expr.expr)
+      let expr = desugar_plain_expression ~loc state term in
+      expr.wrap (Boxed.return loc expr.expr)
 
 and desugar_abstraction state (pat, term) =
   let vars, binders, pat' = desugar_pattern state StringMap.empty pat in
@@ -266,16 +312,17 @@ and desugar_abstraction state (pat, term) =
   let comp = desugar_computation state' term in
   close_abstraction (Array.of_list binders) pat' comp
 
-and desugar_function_abstraction state cases =
+and desugar_function_abstraction ~loc state cases =
   let x_name = "arg" in
-  let x_var = Bindlib.new_var (fun x -> Untyped.Var x) x_name in
-  let x_box = Bindlib.box_var x_var in
+  let x_var = new_variable x_name in
+  let x_box = Boxed.var loc x_var in
   let cases' = List.map (desugar_abstraction state) cases in
-  let match_expr = Boxed.match_ x_box cases' in
-  close_abstraction [| x_var |] Untyped.PVar match_expr
+  let match_expr = Boxed.match_ loc x_box cases' in
+  close_abstraction [| x_var |] (Untyped.located loc Untyped.PVar) match_expr
 
 and desugar_let_rec_def state (f, term) =
-  let f_var = Bindlib.new_var (fun x -> Untyped.Var x) f in
+  let loc = term.Sugared.at in
+  let f_var = new_variable f in
   let state_rec =
     { state with local_vars = StringMap.add f f_var state.local_vars }
   in
@@ -288,7 +335,9 @@ and desugar_let_rec_def state (f, term) =
     | _ -> annotations
   in
   let rec_binder = Bindlib.bind_var f_var abstraction in
-  List.fold_left Boxed.annotated (Boxed.rec_lambda rec_binder) annotations
+  List.fold_left (Boxed.annotated loc)
+    (Boxed.rec_lambda loc rec_binder)
+    annotations
 
 and desugar_recursive_function state { Sugared.it = term; at = loc } =
   match term with
@@ -297,15 +346,15 @@ and desugar_recursive_function state { Sugared.it = term; at = loc } =
       let ty' = desugar_ty state ty in
       (abstraction, annotations @ [ ty' ])
   | Sugared.Lambda abstraction -> (desugar_abstraction state abstraction, [])
-  | Sugared.Function cases -> (desugar_function_abstraction state cases, [])
+  | Sugared.Function cases -> (desugar_function_abstraction ~loc state cases, [])
   | _ -> Error.syntax ~loc "let rec expects a function expression"
 
-and desugar_if_then_else e c1 c2 =
-  let true_p = Untyped.PConst Const.of_true in
-  let false_p = Untyped.PConst Const.of_false in
+and desugar_if_then_else loc e c1 c2 =
+  let true_p = Untyped.located loc (Untyped.PConst Const.of_true) in
+  let false_p = Untyped.located loc (Untyped.PConst Const.of_false) in
   let a1 = close_abstraction [||] true_p c1 in
   let a2 = close_abstraction [||] false_p c2 in
-  Boxed.match_ e [ a1; a2 ]
+  Boxed.match_ loc e [ a1; a2 ]
 
 let add_label ~loc state label label' =
   let labels' = add_unique ~loc "Label" label label' state.labels in

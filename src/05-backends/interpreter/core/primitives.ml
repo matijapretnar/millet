@@ -3,21 +3,24 @@ module Ast = Language.Ast
 module Const = Language.Const
 module Primitives = Language.Primitives
 
-let binary_function f = function
-  | Ast.Tuple [ expr1; expr2 ] -> f expr1 expr2
-  | expr -> Error.runtime "Pair expected but got %t" (Ast.print_expression expr)
+let return_const c = Ast.unlocated (Ast.Return (Ast.unlocated (Ast.Const c)))
 
-let rec get_int = function
+let binary_function f expr =
+  match expr.Ast.it with
+  | Ast.Tuple [ expr1; expr2 ] -> f expr1 expr2
+  | _ -> Error.runtime "Pair expected but got %t" (Ast.print_expression expr)
+
+let rec get_int expr =
+  match expr.Ast.it with
   | Ast.Const (Const.Integer n) -> n
   | Ast.Annotated (expr, _) -> get_int expr
-  | expr ->
-      Error.runtime "Integer expected but got %t" (Ast.print_expression expr)
+  | _ -> Error.runtime "Integer expected but got %t" (Ast.print_expression expr)
 
-let rec get_float = function
+let rec get_float expr =
+  match expr.Ast.it with
   | Ast.Const (Const.Float n) -> n
   | Ast.Annotated (expr, _) -> get_float expr
-  | expr ->
-      Error.runtime "Float expected but got %t" (Ast.print_expression expr)
+  | _ -> Error.runtime "Float expected but got %t" (Ast.print_expression expr)
 
 let int_to f expr =
   let n = get_int expr in
@@ -43,19 +46,18 @@ let float_float_to f expr =
       f n1 n2)
     expr
 
-let int_to_int f =
-  int_to (fun n -> Ast.Return (Ast.Const (Const.Integer (f n))))
+let int_to_int f = int_to (fun n -> return_const (Const.Integer (f n)))
 
 let int_int_to_int f =
-  int_int_to (fun n1 n2 -> Ast.Return (Ast.Const (Const.Integer (f n1 n2))))
+  int_int_to (fun n1 n2 -> return_const (Const.Integer (f n1 n2)))
 
-let float_to_float f =
-  float_to (fun n -> Ast.Return (Ast.Const (Const.Float (f n))))
+let float_to_float f = float_to (fun n -> return_const (Const.Float (f n)))
 
 let float_float_to_float f =
-  float_float_to (fun n1 n2 -> Ast.Return (Ast.Const (Const.Float (f n1 n2))))
+  float_float_to (fun n1 n2 -> return_const (Const.Float (f n1 n2)))
 
-let rec comparable_expression = function
+let rec comparable_expression expr =
+  match expr.Ast.it with
   | Ast.Var _ -> true
   | Ast.TopVar _ -> true
   | Const _ -> true
@@ -65,15 +67,18 @@ let rec comparable_expression = function
   | Lambda _ -> false
   | RecLambda _ -> false
 
-(* Runtime values may carry Annotated wrappers which means that OCaml's structural comparator
-   operators view them as different (e.g. Annotated (3) does not equal 3). This makes comparisons
-   false, which is why we strip the annotations before comparison. *)
-let rec strip_annotations = function
+(* Runtime values may carry Annotated wrappers and source locations, which
+   OCaml's structural comparison operators would take into account (e.g.
+   Annotated (3) does not equal 3). This is why we strip both before
+   comparison. *)
+let rec strip_annotations expr =
+  match expr.Ast.it with
   | Ast.Annotated (expr, _) -> strip_annotations expr
-  | Ast.Tuple exprs -> Ast.Tuple (List.map strip_annotations exprs)
+  | Ast.Tuple exprs ->
+      Ast.unlocated (Ast.Tuple (List.map strip_annotations exprs))
   | Ast.Variant (lbl, expr) ->
-      Ast.Variant (lbl, Option.map strip_annotations expr)
-  | expr -> expr
+      Ast.unlocated (Ast.Variant (lbl, Option.map strip_annotations expr))
+  | it -> Ast.unlocated it
 
 let comparison f =
   binary_function (fun e1 e2 ->
@@ -84,9 +89,8 @@ let comparison f =
         Error.runtime "Incomparable expression %t"
           (Ast.print_expression ~max_level:0 e2)
       else
-        Ast.Return
-          (Ast.Const
-             (Const.Boolean (f (strip_annotations e1) (strip_annotations e2)))))
+        return_const
+          (Const.Boolean (f (strip_annotations e1) (strip_annotations e2))))
 
 let primitive_function = function
   | Primitives.CompareEq -> comparison ( = )
@@ -108,5 +112,4 @@ let primitive_function = function
   | Primitives.FloatPow -> float_float_to_float ( ** )
   | Primitives.FloatNeg -> float_to_float ( ~-. )
   | Primitives.ToString ->
-      fun expr ->
-        Ast.Return (Ast.Const (Const.String (Ast.string_of_expression expr)))
+      fun expr -> return_const (Const.String (Ast.string_of_expression expr))

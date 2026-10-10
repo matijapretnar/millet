@@ -18,29 +18,29 @@ type computation_reduction =
   | DoCtx of computation_reduction
   | ComputationRedex of computation_redex
 
-let rec eval_tuple env = function
+let rec eval_tuple env expr =
+  match expr.Ast.it with
   | Ast.Tuple exprs -> exprs
   | Ast.Annotated (expr, _) -> eval_tuple env expr
   | Ast.TopVar x -> eval_tuple env (Ast.TopVarMap.find x env.top_vars)
-  | expr ->
-      Error.runtime "Tuple expected but got %t" (Ast.print_expression expr)
+  | _ -> Error.runtime "Tuple expected but got %t" (Ast.print_expression expr)
 
-let rec eval_variant env = function
+let rec eval_variant env expr =
+  match expr.Ast.it with
   | Ast.Variant (lbl, expr) -> (lbl, expr)
   | Ast.Annotated (expr, _) -> eval_variant env expr
   | Ast.TopVar x -> eval_variant env (Ast.TopVarMap.find x env.top_vars)
-  | expr ->
-      Error.runtime "Variant expected but got %t" (Ast.print_expression expr)
+  | _ -> Error.runtime "Variant expected but got %t" (Ast.print_expression expr)
 
-let rec eval_const env = function
+let rec eval_const env expr =
+  match expr.Ast.it with
   | Ast.Const c -> c
   | Ast.Annotated (expr, _) -> eval_const env expr
   | Ast.TopVar x -> eval_const env (Ast.TopVarMap.find x env.top_vars)
-  | expr ->
-      Error.runtime "Const expected but got %t" (Ast.print_expression expr)
+  | _ -> Error.runtime "Const expected but got %t" (Ast.print_expression expr)
 
 let rec match_pattern_with_expression env pat expr =
-  match pat with
+  match pat.Ast.it with
   | Ast.PVar -> [ expr ]
   | Ast.PAnnotated (pat, _) -> match_pattern_with_expression env pat expr
   | Ast.PAs pat -> match_pattern_with_expression env pat expr @ [ expr ]
@@ -62,9 +62,10 @@ let perform_abstraction env abstraction expr =
   let values = match_pattern_with_expression env pat expr |> Array.of_list in
   Bindlib.msubst binder values
 
-let rec eval_function env = function
+let rec eval_function env expr =
+  match expr.Ast.it with
   | Ast.Lambda abstraction -> fun arg -> perform_abstraction env abstraction arg
-  | Ast.RecLambda binder as expr ->
+  | Ast.RecLambda binder ->
       fun arg ->
         let abstraction = Bindlib.subst binder expr in
         perform_abstraction env abstraction arg
@@ -75,14 +76,15 @@ let rec eval_function env = function
       | None ->
           let expr = Ast.TopVarMap.find x env.top_vars in
           eval_function env expr)
-  | expr ->
+  | _ ->
       Error.runtime "Function expected but got %t" (Ast.print_expression expr)
 
 let step_in_context step env redCtx ctx term =
   let terms' = step env term in
   List.map (fun (red, term') -> (redCtx red, fun () -> ctx (term' ()))) terms'
 
-let rec step_computation env = function
+let rec step_computation env comp =
+  match comp.Ast.it with
   | Ast.Return _ -> []
   | Ast.Match (expr, cases) ->
       let rec find_case = function
@@ -100,10 +102,10 @@ let rec step_computation env = function
       let comps1' =
         step_in_context step_computation env
           (fun red -> DoCtx red)
-          (fun comp1' -> Ast.Do (comp1', abstraction))
+          (fun comp1' -> { comp with it = Ast.Do (comp1', abstraction) })
           comp1
       in
-      match comp1 with
+      match comp1.it with
       | Ast.Return expr ->
           ( ComputationRedex DoReturn,
             fun () -> perform_abstraction env abstraction expr )
@@ -154,7 +156,7 @@ let run load_state = load_state
 
 let steps = function
   | { computations = []; _ } -> []
-  | { computations = Ast.Return _ :: comps; environment } ->
+  | { computations = { it = Ast.Return _; _ } :: comps; environment } ->
       [
         {
           label = Return;
