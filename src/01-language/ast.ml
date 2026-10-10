@@ -136,6 +136,9 @@ and computation =
   | Apply of expression * expression
 
 and abstraction = pattern * (expression, computation) Bindlib.mbinder
+(** The binder binds the variables of the pattern from left to right, and the
+    variable of [p as x] after the variables of [p]. The desugarer, the
+    typechecker, the interpreter and the printer all rely on this order. *)
 
 type ty_def = TySum of (label * ty option) list | TyInline of ty
 

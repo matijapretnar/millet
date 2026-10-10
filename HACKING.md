@@ -33,22 +33,23 @@ Everything in the surface language desugars to a small set of core constructs.
 
 | Construct | Core AST |
 | --- | --- |
-| variable | `Var x` |
+| local variable | `Var x` |
+| top-level variable | `TopVar x` |
 | constant (`42`, `"hi"`, `true`) | `Const c` |
 | type annotation `(e : ty)` | `Annotated (e, ty)` |
 | tuple `(e1, e2, e3)` | `Tuple [e1; e2; e3]` — empty tuple `()` is `Tuple []` |
 | variant `Label e` | `Variant (lbl, Some e)` |
-| `fun p -> t` | `Lambda (p, comp)` |
-| `let rec f p -> t` | `RecLambda (f, (p, comp))` |
+| `fun p -> t` | `Lambda (p, b)`, where `b` binds the variables of `p` in the body |
+| `let rec f p -> t` | `RecLambda b'`, where `b'` binds `f` in the abstraction `(p, b)` |
 
 **Computations** (may take reduction steps):
 
 | Construct | Core AST |
 | --- | --- |
 | `return e` / any value | `Return e` |
-| `let p = c1 in c2` | `Do (c1, (p, c2))` |
+| `let p = c1 in c2` | `Do (c1, (p, b))` |
 | `f e` (application) | `Apply (f, e)` — both must be expressions |
-| `match e with p -> c` | `Match (e, [(p, c); ...])` |
+| `match e with p -> c` | `Match (e, [(p, b); ...])` |
 
 There are additional surface constructs that desugar away entirely:
 
@@ -75,11 +76,13 @@ The `ty` type represents Millet types:
 
 ### Patterns
 
+Patterns carry no names: the variables they bind are bound by the binder of the enclosing abstraction, in the order documented at `abstraction` in `ast.ml`.
+
 | Construct | Core AST |
 | --- | --- |
-| variable `x` | `PVar x` |
+| variable `x` | `PVar` |
 | type annotation `(p : ty)` | `PAnnotated (p, ty)` |
-| alias `p as x` | `PAs (p, x)` |
+| alias `p as x` | `PAs p` |
 | tuple `(p1, p2, p3)` | `PTuple [p1; p2; p3]` |
 | variant `Label p` | `PVariant (lbl, Some p)` |
 | constant `42` | `PConst c` |
@@ -94,24 +97,24 @@ The `ty` type represents Millet types:
 | `run t` | `TopDo comp` | enqueues a computation for evaluation |
 | `let rec f = e` | `TopLet (f, RecLambda ...)` | desugared to `TopLet` before reaching the core |
 
-## The Symbol system
+## Names and binding
 
-> **Planned change:** `Symbol` will be replaced by [bindlib](https://github.com/rlepigre/ocaml-bindlib), a library that handles variable binding and substitution generically. The manual refresh/substitution machinery in the interpreter will go away.
+The core AST uses two kinds of names, and the desugarer (`src/03-desugarer/desugarer.ml`) is the sole boundary between them and the string names of the surface syntax.
 
-All names in the core AST are **typed symbols** rather than strings. Each symbol module is created independently with `Symbol.Make ()`:
+**Bound variables** are [Bindlib](https://github.com/rlepigre/ocaml-bindlib) variables: `variable = expression Bindlib.var`. Abstractions (`Lambda`, `Do`, `Match` cases) pair a pattern with a multiple binder over the body, and `RecLambda` binds the function in its abstraction. The desugarer builds terms as Bindlib boxes and returns unboxed commands. The interpreter substitutes values with `Bindlib.subst` and `Bindlib.msubst`, so there is no hand-written renaming or capture-avoiding substitution. The typechecker unbinds a body before checking it and keeps the types of local variables by Bindlib id.
+
+**Atoms** are names that are never bound and that nothing is ever substituted for. Each kind is a separate module created with `Symbol.Make ()`:
 
 ```ocaml
-module Variable = Symbol.Make ()   (* term-level variables *)
-module TyName   = Symbol.Make ()   (* type constructor names *)
-module TyParam  = Symbol.Make ()   (* type parameters *)
-module Label    = Symbol.Make ()   (* variant constructor labels *)
+module TyName = Symbol.Make ()   (* type constructor names *)
+module TyParam = Symbol.Make ()  (* type parameters *)
+module Label = Symbol.Make ()    (* variant constructor labels *)
+module TopVar = Symbol.Make ()   (* top-level variables *)
 ```
 
-A symbol is an `(int * string)` pair: a globally unique counter and a human-readable annotation used only for printing. Two symbols with the same annotation but different counters are distinct — there are no accidental name collisions.
+A symbol is an `(int * string)` pair: a globally unique counter and a human-readable annotation used only for printing. Two symbols with the same annotation but different counters are distinct. Atoms are kept out of Bindlib on purpose: a Bindlib variable contains closures, so OCaml's structural equality fails on any value that contains one, whereas types, patterns and runtime values that contain only atoms can still be compared with `=`.
 
-The **desugarer** (`src/03-desugarer/desugarer.ml`) is the sole boundary between string-based and symbol-based names. It maintains `StringMap`-based scope tables and converts every string name to a fresh symbol. After desugaring, no string lookups exist in the pipeline.
-
-`Variable.refresh x` creates a fresh symbol with the same annotation as `x`. The interpreter uses this to rename bound variables when substituting into recursive closures, preventing variable capture.
+Top-level variables are atoms because they are constants with known bodies: the interpreter looks them up in its environment and the typechecker instantiates their type schemes, while local variables are substituted and monomorphic.
 
 ## Type inference
 
@@ -122,7 +125,7 @@ The **desugarer** (`src/03-desugarer/desugarer.ml`) is the sole boundary between
 - `infer_expression` and `infer_computation` each return `(ty * (ty * ty) list)`: the inferred type plus a list of equality constraints accumulated along the way.
 - `unify` solves the constraint list and returns a substitution `ty TyParamMap.t`.
 - `TyTuple []` is the unit type — there is no separate unit constructor.
-- Type schemes `(ty_param list * ty)` are stored in the variable environment. `refreshing_subst` instantiates them with fresh type variables at each use site, giving let-polymorphism.
+- Top-level variables have type schemes `(ty_param list * ty)` in `top_vars`, and `refreshing_subst` instantiates them with fresh type variables at each use site. Local variables have monotypes in `local_vars`.
 
 ## The small-step interpreter
 
