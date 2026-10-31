@@ -1,10 +1,37 @@
 # Hacking on Millet
 
-This document describes the architecture and implementation of Millet for anyone who wants to understand or modify the codebase. For a high-level overview of the pipeline stages, see the architecture table in `README.md`.
+This document describes the architecture and implementation of Millet for anyone who wants to understand or modify the codebase. The architecture table in `README.md` lists the directory of each pipeline stage. The diagram below shows what each stage passes to the next:
+
+```text
+source text
+    │  src/02-parser/lexer.mll + grammar.mly
+    ▼
+SugaredAst          (string names, every node location-annotated)
+    │  src/03-desugarer/desugarer.ml
+    ▼
+Language.Ast        (Bindlib binders for bound variables, Symbol.t atoms for
+    │                other names, no locations)
+    │  src/04-typechecker/typechecker.ml
+    ▼
+Language.Ast        (unchanged; the bidirectional typechecker only checks)
+    │  src/05-backends/interpreter/core/interpreter.ml
+    ▼
+small-step run_state (list of possible next reductions)
+```
+
+The `Loader` functor (`src/06-user-interface/core/loader.ml`) wires these stages together, parameterised over `Backend.S` (`src/05-backends/sig/core/backend.ml`).
 
 ## Current plans
 
-The main goal is to rebuild [Eff](https://github.com/matijapretnar/eff) on top of Millet, adding algebraic effects and handlers as a language extension rather than a separate codebase. Alongside that: a REPL, an extended standard library, a module system, more examples, and eventually a language server (LSP).
+Planned work, in order:
+
+1. A REPL.
+2. A module system.
+3. A standard library, built on top of the module system.
+4. A language server (LSP).
+5. Rebase [AEff](https://github.com/matijapretnar/aeff) on top of Millet.
+6. Rebase [Eff](https://github.com/matijapretnar/eff) on top of Millet.
+7. A Jupyter kernel.
 
 ## The expression/computation split
 
@@ -125,7 +152,12 @@ Top-level variables are atoms because they are constants with known bodies: the 
 - All other `TyParam`s are unification variables, created by `fresh_ty`. Both kinds share the `TyParam` constructor.
 - `TyTuple []` is the unit type — there is no separate unit constructor.
 - Top-level variables have type schemes `(ty_param list * ty)` in `top_vars`, and `refreshing_subst` instantiates them with fresh unification variables at each use site. Local variables have monotypes in `local_vars`.
-- Inner `let`s are not generalised, and a recursive function is monomorphic in its own body.
+
+The following restrictions are deliberate. Do not lift them:
+
+- Nothing is generalised. Every top-level definition and every recursive function declares its full type, and inner `let`s are monomorphic.
+- There is no polymorphic recursion. It would be an easy extension, but type systems built on Millet may be incompatible with it.
+- Unsolved unification variables are accepted. No behaviour depends on types, so they are harmless.
 
 ## The small-step interpreter
 
@@ -165,9 +197,16 @@ If the new construct has a core-language counterpart, also extend `src/01-langua
 
 The `Backend.S` module type is defined in `src/05-backends/sig/core/backend.ml`. Implement this signature, then instantiate the `Loader` functor with your new backend module and write a driver (following `src/06-user-interface/cli/cli.ml`).
 
+## Examples
+
+The programs in `examples/` are run by the test suite and shown in the web interface. The web interface does not find them automatically: register each new example in `src/06-user-interface/web/dune` by adding its name and source to the rule that generates `examples_mlt.ml`.
+
 ## Tests
 
-Tests live in `tests/`. The entire suite is driven by a single shell script in `tests/run_tests.t`: it runs `cli.exe` on every `.mlt` file in the directory and records the output. The recorded output is the expected output — the test passes when the actual output matches it exactly.
+Tests live in `tests/` and are dune cram tests: each `.t` file holds shell commands together with their recorded output, and a test passes when the actual output matches the recorded output exactly.
+
+- `tests/valid.t` runs `cli.exe` on every program in `tests/valid/` and `examples/`.
+- `tests/invalid.t` runs `cli.exe` on every program in `tests/invalid/` and `tests/invalid/typechecker/`. These programs must be rejected, and the recorded output is the error message.
 
 To run the tests:
 
@@ -175,8 +214,10 @@ To run the tests:
 make test
 ```
 
-To add a test, create a new `.mlt` file in `tests/`. Then run `make test` once; it will fail and show the actual output as a diff. Promote the output to become the new expected output with:
+To add a test, create a new `.mlt` file in the appropriate directory. Then run `make test` once; it will fail and show the actual output as a diff. If the output is correct, promote it to become the new expected output with:
 
 ```sh
 dune promote
 ```
+
+Do not edit the `.t` files by hand.
